@@ -9,6 +9,11 @@ You can build and run it as a simple flutter project (such as, flutter build win
 
 Run this project on Windows or MacOS as host, and you will be able to control the host on another client, or from https://www.cloudplayplus.com/web/. You need to register a account first.
 
+## Recent Updates
+- **v1.0.0-beta (2025-12-27)**: First public beta release (includes v10.3 fixes).
+- **v10.2 (2025-12-27)**: Fixed Headless mode startup hang.
+- See [CHANGELOG.md](CHANGELOG.md) for full history.
+
 # Some Additional Develop Material
 # WebRTC
 We use custom build of WebRTC for cloudplayplus. The main purpose is add hardware_acceleration support in WebRTC windows and some GPU texture support. We have added/modified some interfaces and you can check the difference from flutter-webrtc in this project and official [flutter-webrtc](https://github.com/flutter-webrtc/flutter-webrtc).

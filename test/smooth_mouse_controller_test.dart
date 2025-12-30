@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:cloudplayplus/controller/smooth_mouse_controller.dart';
-import 'package:cloudplayplus/utils/widgets/on_screen_remote_mouse.dart';
+import 'package:slc/controller/smooth_mouse_controller.dart';
+import 'package:slc/utils/widgets/on_screen_remote_mouse.dart';
 
 void main() {
   group('SmoothMouseController Tests', () {

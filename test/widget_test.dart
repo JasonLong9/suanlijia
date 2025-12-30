@@ -7,7 +7,7 @@
 
 import 'dart:typed_data';
 
-import 'package:cloudplayplus/entities/messages.dart';
+import 'package:slc/entities/messages.dart';
 import 'package:hardware_simulator/hardware_simulator.dart';
 
 void requestMoveMouseRelative(double dx, double dy, int screenId) async {

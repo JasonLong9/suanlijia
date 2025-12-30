@@ -1,4 +1,4 @@
-import 'package:cloudplayplus/base/logging.dart';
+import 'package:slc/base/logging.dart';
 
 import 'turn.dart' if (dart.library.js) 'turn_web.dart';
 

@@ -7,9 +7,22 @@ FlutterScreenCapture::FlutterScreenCapture(FlutterWebRTCBase* base)
 
 bool FlutterScreenCapture::BuildDesktopSourcesList(const EncodableList& types,
                                                    bool force_reload) {
+  last_error_.clear();
+  if (base_ == nullptr) {
+    last_error_ = "FlutterWebRTCBase is null";
+    return false;
+  }
+  if (!base_->desktop_device_.get()) {
+    last_error_ = "Desktop device is not available";
+    return false;
+  }
   size_t size = types.size();
   sources_.clear();
   for (size_t i = 0; i < size; i++) {
+    if (!TypeIs<std::string>(types[i])) {
+      last_error_ = "Bad arguments: types must be strings";
+      return false;
+    }
     std::string type_str = GetValue<std::string>(types[i]);
     DesktopType desktop_type = DesktopType::kScreen;
     if (type_str == "screen") {
@@ -18,6 +31,7 @@ bool FlutterScreenCapture::BuildDesktopSourcesList(const EncodableList& types,
       desktop_type = DesktopType::kWindow;
     } else {
       // std::cout << "Unknown type " << type_str << std::endl;
+      last_error_ = "Unknown desktop source type: " + type_str;
       return false;
     }
     scoped_refptr<RTCDesktopMediaList> source_list;
@@ -26,13 +40,28 @@ bool FlutterScreenCapture::BuildDesktopSourcesList(const EncodableList& types,
       source_list = (*it).second;
     } else {
       source_list = base_->desktop_device_->GetDesktopMediaList(desktop_type);
+      if (!source_list.get()) {
+        last_error_ = "GetDesktopMediaList returned null";
+        return false;
+      }
       source_list->RegisterMediaListObserver(this);
       medialist_[desktop_type] = source_list;
     }
-    source_list->UpdateSourceList(force_reload);
-    int count = source_list->GetSourceCount();
+    if (!source_list.get()) {
+      last_error_ = "Desktop media list is null";
+      return false;
+    }
+    const int32_t update_result = source_list->UpdateSourceList(force_reload);
+    if (update_result < 0) {
+      last_error_ = "UpdateSourceList failed";
+      return false;
+    }
+    const int count = source_list->GetSourceCount();
     for (int j = 0; j < count; j++) {
-      sources_.push_back(source_list->GetSource(j));
+      auto source = source_list->GetSource(j);
+      if (source.get()) {
+        sources_.push_back(source);
+      }
     }
   }
   return true;
@@ -42,7 +71,9 @@ void FlutterScreenCapture::GetDesktopSources(
     const EncodableList& types,
     std::unique_ptr<MethodResultProxy> result) {
   if (!BuildDesktopSourcesList(types, true)) {
-    result->Error("Bad Arguments", "Failed to get desktop sources");
+    result->Error("ScreenCaptureError",
+                  last_error_.empty() ? "Failed to get desktop sources"
+                                      : last_error_);
     return;
   }
 
@@ -71,7 +102,9 @@ void FlutterScreenCapture::UpdateDesktopSources(
     const EncodableList& types,
     std::unique_ptr<MethodResultProxy> result) {
   if (!BuildDesktopSourcesList(types, false)) {
-    result->Error("Bad Arguments", "Failed to update desktop sources");
+    result->Error("ScreenCaptureError",
+                  last_error_.empty() ? "Failed to update desktop sources"
+                                      : last_error_);
     return;
   }
   auto map = EncodableMap();
@@ -179,6 +212,14 @@ void FlutterScreenCapture::GetDesktopSourceThumbnail(
 void FlutterScreenCapture::GetDisplayMedia(
     const EncodableMap& constraints,
     std::unique_ptr<MethodResultProxy> result) {
+  if (base_ == nullptr) {
+    result->Error("ScreenCaptureError", "FlutterWebRTCBase is null");
+    return;
+  }
+  if (!base_->desktop_device_.get()) {
+    result->Error("ScreenCaptureError", "Desktop device is not available");
+    return;
+  }
   std::string source_id = "0";
   // DesktopType source_type = kScreen;
   double fps = 60.0;

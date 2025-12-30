@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:cloudplayplus/dev_settings.dart/develop_settings.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/services/secure_storage_manager.dart';
-import 'package:cloudplayplus/services/shared_preferences_manager.dart';
+import 'package:slc/dev_settings.dart/develop_settings.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/services/secure_storage_manager.dart';
+import 'package:slc/services/shared_preferences_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../entities/user.dart' as cpp_user;
@@ -22,7 +22,9 @@ import '../../entities/user.dart' as cpp_user;
 class LoginService {
   //run python manage.py runserver 8000 before testing.
   //sudo service redis-server start before run server on windows WSL.
-  static String _baseUrl = 'https://www.cloudplayplus.com';
+  // 算力橙自定义后端服务器
+  static String _baseUrl = 'http://8.210.183.180:8000';
+  static String get baseUrl => _baseUrl;
 
   static void init() {
     if (DevelopSettings.useLocalServer) {

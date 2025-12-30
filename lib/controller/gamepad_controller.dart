@@ -2,8 +2,8 @@
 // in the callback of gamepad event it is still not updated yet.
 // ignore_for_file: always_put_control_body_on_new_line
 
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/services/webrtc_service.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/services/webrtc_service.dart';
 import 'package:gamepads/gamepads.dart';
 
 class CGamepadState {

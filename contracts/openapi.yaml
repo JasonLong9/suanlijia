@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: CloudPlayPlus Control Plane API
+  version: 0.1.0
+  description: >
+    控制平面 API（资源池/租赁/计费/管理台）。用于线A（Django）与线B（Flutter 客户端/节点）并行开发对齐。
+servers:
+  - url: https://www.cloudplayplus.com
+
+tags:
+  - name: pool
+  - name: lease
+  - name: billing
+  - name: device
+  - name: auth
+  - name: system
+  - name: admin
+
+paths:
+  /api/login/:
+    post:
+      tags: [auth]
+      summary: 用户登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+                  refresh: { type: string }
+                  uid: { type: integer }
+                  nickname: { type: string }
+                  chattoken: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/register/:
+    post:
+      tags: [auth]
+      summary: 用户注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, email, nickname]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                email: { type: string }
+                nickname: { type: string }
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/token/refresh/:
+    post:
+      tags: [auth]
+      summary: 刷新 Access Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh]
+              properties:
+                refresh: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/getlatestversion/:
+    get:
+      tags: [system]
+      summary: 获取最新版本号
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: string }
+  /api/pool/nodes/:
+    get:
+      tags: [pool]
+      summary: 查询资源池节点
+      parameters:
+        - in: query
+          name: region
+          schema: { type: string }
+        - in: query
+          name: gpu_tier
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/NodeStatus' }
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolNodesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/lease/rent/:
+    post:
+      tags: [lease]
+      summary: 创建租赁（支持多台）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RentRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: No capacity / conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/lease/release/:
+    post:
+      tags: [lease]
+      summary: 释放租赁（立即停费并结算，幂等）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/billing/info/:
+    get:
+      tags: [billing]
+      summary: 获取余额与账单信息
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/device/token/:
+    post:
+      tags: [device]
+      summary: 设备身份换取 device token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTokenRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/nodes/:
+    get:
+      tags: [admin]
+      summary: Admin 查询全量节点
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminNodesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/nodes/{device_id}/state/:
+    post:
+      tags: [admin]
+      summary: Admin 设置节点状态（disabled/maintenance）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: device_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSetNodeStateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/nodes/{device_id}/force_release/:
+    post:
+      tags: [admin]
+      summary: Admin 强制释放节点（结束该节点所有活跃租赁并触发回收）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: device_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminForceReleaseNodeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/leases/{lease_id}/force_release/:
+    post:
+      tags: [admin]
+      summary: Admin 强制释放租赁（立即停费并结算）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: lease_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/nodes/{device_id}/reboot/:
+    post:
+      tags: [admin]
+      summary: Admin 强制重启节点（运维命令）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: device_id
+          required: true
+          schema: { type: string }
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    NodeStatus:
+      type: string
+      enum: [OFFLINE, FREE, ASSIGNED, IN_USE, RELEASING, DISABLED, MAINTENANCE]
+
+    LeaseStatus:
+      type: string
+      enum: [PENDING, ASSIGNED, READY, ACTIVE, RELEASING, ENDED]
+
+    BillingUnit:
+      type: string
+      enum: [minute, hour, day, week, month]
+
+    EndReason:
+      type: string
+      enum: [USER_RELEASE, NODE_OFFLINE, ADMIN_FORCE_RELEASE, TIMEOUT, ERROR]
+
+    Node:
+      type: object
+      required: [device_id, region, gpu_tier, status, last_seen]
+      properties:
+        device_id:
+          type: string
+        connection_id:
+          type: string
+          nullable: true
+          description: 当前在线 WS 会话 ID（可变，OFFLINE 时可能为 null）
+        region:
+          type: string
+        gpu_tier:
+          type: string
+          description: GPU 规格（7 档枚举或可配置字符串）
+        status:
+          $ref: '#/components/schemas/NodeStatus'
+        last_seen:
+          type: string
+          format: date-time
+        agent_version:
+          type: string
+          nullable: true
+
+    Lease:
+      type: object
+      required: [lease_id, device_id, status, billing_unit]
+      properties:
+        lease_id:
+          type: string
+        device_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/LeaseStatus'
+        billing_unit:
+          $ref: '#/components/schemas/BillingUnit'
+        unit_price:
+          type: number
+          format: double
+          nullable: true
+        billed_units:
+          type: integer
+          nullable: true
+        amount:
+          type: number
+          format: double
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        end_reason:
+          $ref: '#/components/schemas/EndReason'
+          nullable: true
+
+    PoolNodesResponse:
+      type: object
+      required: [nodes]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        prices:
+          type: array
+          description: 可选：返回与查询条件相关的价格表，减少额外请求
+          items:
+            $ref: '#/components/schemas/PricePlan'
+
+    PricePlan:
+      type: object
+      required: [region, gpu_tier, billing_unit, unit_price]
+      properties:
+        region:
+          type: string
+        gpu_tier:
+          type: string
+        billing_unit:
+          $ref: '#/components/schemas/BillingUnit'
+        unit_price:
+          type: number
+          format: double
+
+    RentRequest:
+      type: object
+      required: [region, gpu_tier, billing_unit, count]
+      properties:
+        region:
+          type: string
+        gpu_tier:
+          type: string
+        billing_unit:
+          $ref: '#/components/schemas/BillingUnit'
+        count:
+          type: integer
+          minimum: 1
+          maximum: 100
+        client_request_id:
+          type: string
+          description: 幂等键（推荐 UUID；同一用户同 key 重试应返回同结果）
+
+    RentResponse:
+      type: object
+      required: [leases]
+      properties:
+        leases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lease'
+        lease_token_map:
+          type: object
+          additionalProperties:
+            type: string
+          description: 可选：lease_id -> lease_token（也可由单独接口获取）
+
+    ReleaseRequest:
+      type: object
+      required: [lease_ids]
+      properties:
+        lease_ids:
+          type: array
+          items:
+            type: string
+        client_request_id:
+          type: string
+          description: 幂等键（推荐 UUID）
+
+    ReleaseResponse:
+      type: object
+      required: [leases]
+      properties:
+        leases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lease'
+
+    BillingInfoResponse:
+      type: object
+      required: [currency, balance, active_leases, history]
+      properties:
+        currency:
+          type: string
+          example: CNY
+        balance:
+          type: number
+          format: double
+        active_leases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lease'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingRecord'
+
+    BillingRecord:
+      type: object
+      required: [record_id, lease_id, amount, billed_units, billing_unit, created_at]
+      properties:
+        record_id:
+          type: string
+        lease_id:
+          type: string
+        amount:
+          type: number
+          format: double
+        billed_units:
+          type: integer
+        billing_unit:
+          $ref: '#/components/schemas/BillingUnit'
+        created_at:
+          type: string
+          format: date-time
+        end_reason:
+          $ref: '#/components/schemas/EndReason'
+          nullable: true
+
+    DeviceTokenRequest:
+      type: object
+      required: [device_id, device_secret]
+      properties:
+        device_id:
+          type: string
+        device_secret:
+          type: string
+
+    DeviceTokenResponse:
+      type: object
+      required: [device_token]
+      properties:
+        device_token:
+          type: string
+
+    AdminNodesResponse:
+      type: object
+      required: [nodes]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+
+    AdminSetNodeStateRequest:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [DISABLED, MAINTENANCE, FREE]
+
+    AdminForceReleaseNodeResponse:
+      type: object
+      required: [device_id, leases]
+      properties:
+        device_id:
+          type: string
+        leases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lease'
+
+    AcceptedResponse:
+      type: object
+      required: [accepted]
+      properties:
+        accepted:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true

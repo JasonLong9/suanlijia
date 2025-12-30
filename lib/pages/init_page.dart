@@ -1,8 +1,8 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:cloudplayplus/intro_screen.dart';
-import 'package:cloudplayplus/pages/login_screen.dart';
-import 'package:cloudplayplus/pages/main_page.dart';
-import 'package:cloudplayplus/pages/reconnect_page.dart';
+import 'package:slc/intro_screen.dart';
+import 'package:slc/pages/login_screen.dart';
+import 'package:slc/pages/main_page.dart';
+import 'package:slc/pages/reconnect_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +12,7 @@ import '../services/app_info_service.dart';
 import '../services/login_service.dart';
 import '../services/shared_preferences_manager.dart';
 import '../theme/fixed_colors.dart';
+import '../config/custom_config.dart';
 
 /// 更新提示页面
 class UpdateScreen extends StatelessWidget {
@@ -300,7 +301,7 @@ class InitPage extends StatelessWidget {
                       child: AnimatedTextKit(
                         animatedTexts: [
                           ColorizeAnimatedText(
-                            'Cloud Play Plus',
+                            CustomConfig.isV11 ? CustomConfig.appName : 'Cloud Play Plus',
                             textStyle: colorizeTextStyle,
                             colors: colorizeColors,
                           ),

@@ -1,4 +1,4 @@
-import 'package:cloudplayplus/entities/session.dart';
+import 'package:slc/entities/session.dart';
 import 'package:flutter/foundation.dart';
 
 class Device {

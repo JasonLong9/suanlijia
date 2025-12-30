@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:cloudplayplus/services/login_service.dart';
+import 'package:slc/services/login_service.dart';
+import 'package:slc/service_locator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -10,8 +11,9 @@ void main() {
     // Use real network request in this test.
     // https://github.com/flutter/flutter/issues/35318
     HttpOverrides.global = null;
-    LoginService.init();
-    String latestVersion = await LoginService.getLatestVersion();
+    setupServiceLocator();
+    getIt<LoginService>().init();
+    String latestVersion = await getIt<LoginService>().getLatestVersion();
     expect(latestVersion, "1.0.9");
   });
 }

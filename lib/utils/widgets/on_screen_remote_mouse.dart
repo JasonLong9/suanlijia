@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'dart:typed_data';
 
 import 'package:hardware_simulator/hardware_simulator.dart';
-import 'package:cloudplayplus/global_settings/streaming_settings.dart';
+import 'package:slc/global_settings/streaming_settings.dart';
 
 class OnScreenRemoteMouseController extends ChangeNotifier {
   Offset _position = const Offset(100, 100);

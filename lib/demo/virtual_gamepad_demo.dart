@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/utils/widgets/virtual_gamepad/virtual_gamepad_settings_screen.dart';
-import 'package:cloudplayplus/utils/widgets/virtual_gamepad/control_manager.dart';
-import 'package:cloudplayplus/utils/widgets/virtual_gamepad/control_event.dart';
-import 'package:cloudplayplus/utils/widgets/virtual_gamepad/joystick_control.dart';
+import 'package:slc/utils/widgets/virtual_gamepad/virtual_gamepad_settings_screen.dart';
+import 'package:slc/utils/widgets/virtual_gamepad/control_manager.dart';
+import 'package:slc/utils/widgets/virtual_gamepad/control_event.dart';
+import 'package:slc/utils/widgets/virtual_gamepad/joystick_control.dart';
 
 void main() {
   runApp(const MyApp());

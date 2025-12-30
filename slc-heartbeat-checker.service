@@ -1,0 +1,14 @@
+[Unit]
+Description=SLC Node Heartbeat Checker Daemon
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/SuanLiJia/backend
+ExecStart=/usr/bin/python3 /SuanLiJia/backend/manage.py check_node_heartbeats --daemon --timeout=60 --interval=30
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

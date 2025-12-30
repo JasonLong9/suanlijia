@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:cloudplayplus/global_settings/streaming_settings.dart';
-import 'package:cloudplayplus/services/login_service.dart';
-import 'package:cloudplayplus/services/shared_preferences_manager.dart';
-import 'package:cloudplayplus/services/streamed_manager.dart';
-import 'package:cloudplayplus/services/streaming_manager.dart';
-import 'package:cloudplayplus/utils/hash_util.dart';
-import 'package:cloudplayplus/utils/system_tray_manager.dart';
+import 'package:slc/global_settings/streaming_settings.dart';
+import 'package:slc/services/login_service.dart';
+import 'package:slc/services/shared_preferences_manager.dart';
+import 'package:slc/services/streamed_manager.dart';
+import 'package:slc/services/streaming_manager.dart';
+import 'package:slc/utils/hash_util.dart';
+import 'package:slc/utils/system_tray_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hardware_simulator/hardware_simulator.dart';
 
@@ -17,6 +17,8 @@ import '../entities/device.dart';
 import '../entities/user.dart';
 import '../utils/websocket.dart'
     if (dart.library.js) '../utils/websocket_web.dart';
+import '../control_plane/node_agent_config.dart';
+import 'node_agent_service.dart';
 import 'app_info_service.dart';
 import 'secure_storage_manager.dart';
 
@@ -30,7 +32,8 @@ enum WebSocketConnectionState {
 // This class manages the connection state of the client to the CloudPlayPlus server.
 class WebSocketService {
   static SimpleWebSocket? _socket;
-  static String _baseUrl = 'wss://www.cloudplayplus.com/ws/';
+  // 算力橙自定义后端服务器
+  static String _baseUrl = 'ws://8.210.183.180:18080/ws/';
   static Timer? _reconnectTimer;
   static Timer? _heartbeatTimer;
   static Timer? _pongTimeoutTimer;
@@ -152,6 +155,7 @@ class WebSocketService {
       'deviceType': ApplicationInfo.deviceTypeName,
       'connective': ApplicationInfo.connectable,
       'screenCount': ApplicationInfo.screenCount,
+      'city': NodeAgentConfig.city,
     });
   }
 
@@ -193,6 +197,7 @@ class WebSocketService {
             'deviceType': ApplicationInfo.deviceTypeName,
             'connective': ApplicationInfo.connectable,
             'screenCount': ApplicationInfo.screenCount,
+            'city': NodeAgentConfig.city,
           });
           ApplicationInfo.thisDevice = (Device(
               uid: ApplicationInfo.user.uid,
@@ -209,7 +214,7 @@ class WebSocketService {
         }
       case 'remoteSessionRequested':
         {
-          StreamedManager.startStreaming(
+          await StreamedManager.startStreaming(
               Device.fromJson(data['requester_info']),
               StreamedSettings.fromJson(data['settings']));
         }
@@ -313,6 +318,11 @@ class WebSocketService {
   }
 
   static void send(event, data) {
+    final nodeAgent = NodeAgentService.instance;
+    if (NodeAgentConfig.enabled && nodeAgent != null && nodeAgent.isConnected) {
+      nodeAgent.send(event, data);
+      return;
+    }
     VLOG0("sending----------");
     VLOG0(event);
     VLOG0(data);

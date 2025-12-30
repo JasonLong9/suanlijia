@@ -41,18 +41,20 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # ================================================
 # register service to the system
-set(INDEPENDENT_EXE "CloudPlayPlusSVC")
+# ================================================
+# register service to the system
+set(INDEPENDENT_EXE "SLCSvc")
 
 # 2. 添加新可执行文件（假设源代码在项目根目录的tools/子目录）
 add_executable(${INDEPENDENT_EXE}
-  serviceRegister/cloudplayplussvc.cpp # 其他源文件
+  serviceRegister/slcsvc.cpp # 其他源文件
 )
 
 # 3. 配置独立编译选项（可选）
 set_target_properties(${INDEPENDENT_EXE} PROPERTIES
   CXX_STANDARD 17
   CXX_STANDARD_REQUIRED ON
-  OUTPUT_NAME "CloudPlayPlusSVC"  # 生成的可执行文件名称
+  OUTPUT_NAME "SLCSvc"  # 生成的可执行文件名称（与 service.bat 一致）
 )
 
 # 4. 指定独立依赖（如需要）
@@ -66,12 +68,31 @@ if(TARGET flutter_assemble)
   # 注意：独立可执行文件不要添加flutter_assemble依赖
 endif()
 
+# 确保构建主程序时同时产出 Windows Service（节点守护进程启动器）
+# add_dependencies(${BINARY_NAME} ${INDEPENDENT_EXE})
+
+# add_custom_command(TARGET ${INDEPENDENT_EXE} POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy
+#         "$<TARGET_FILE:${INDEPENDENT_EXE}>"
+#         "$<TARGET_FILE_DIR:${BINARY_NAME}>/SLCSvc.exe"
+#     COMMENT "Copying SLCSvc.exe to Flutter output"
+# )
+
 add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
         "${CMAKE_CURRENT_SOURCE_DIR}/serviceRegister/service.bat"
         "$<TARGET_FILE_DIR:${BINARY_NAME}>"
     COMMAND ${CMAKE_COMMAND} -E copy
         "${CMAKE_CURRENT_SOURCE_DIR}/serviceRegister/unregisterservice.bat"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_SOURCE_DIR}/serviceRegister/install_node_service.bat"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_SOURCE_DIR}/serviceRegister/install_node_service_silent.bat"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_SOURCE_DIR}/serviceRegister/node.json.example"
         "$<TARGET_FILE_DIR:${BINARY_NAME}>"
     COMMENT "Copying serviceRegister files to Flutter output"
 )

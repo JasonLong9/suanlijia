@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "device_id": "hk-gpu-001",
+  "device_secret": "REPLACE_ME",
+  "region": "hk",
+  "gpu_tier": "tier_7",
+  "heartbeat_seconds": 10,
+  "agent_version": "0.1.0",
+  "reboot_on_release": true,
+  "reboot_delay_seconds": 3
+}
+

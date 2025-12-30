@@ -1,6 +1,6 @@
-import 'package:cloudplayplus/entities/device.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/utils/widgets/device_tile_page.dart';
+import 'package:slc/entities/device.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/utils/widgets/device_tile_page.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_sticky_header/flutter_sticky_header.dart';

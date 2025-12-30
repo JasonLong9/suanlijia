@@ -1,4 +1,4 @@
-import 'package:cloudplayplus/controller/screen_controller.dart';
+import 'package:slc/controller/screen_controller.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 

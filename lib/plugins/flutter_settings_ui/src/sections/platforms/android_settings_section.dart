@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/tiles/abstract_settings_tile.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/utils/settings_theme.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/tiles/abstract_settings_tile.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/utils/settings_theme.dart';
 
 class AndroidSettingsSection extends StatelessWidget {
   const AndroidSettingsSection({

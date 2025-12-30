@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:cloudplayplus/utils/widgets/on_screen_remote_mouse.dart';
+import 'package:slc/utils/widgets/on_screen_remote_mouse.dart';
 
 class SmoothMouseController {
   static const double _maxSpeed = 10.0; // 最大速度

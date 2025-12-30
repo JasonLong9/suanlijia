@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/flutter_settings_ui.dart';
+import 'package:slc/plugins/flutter_settings_ui/flutter_settings_ui.dart';
 
 class IOSSettingsTile extends StatefulWidget {
   const IOSSettingsTile({

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:cloudplayplus/base/logging.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
+import 'package:slc/base/logging.dart';
+import 'package:slc/services/app_info_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../services/app_init_service.dart';

@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:cloudplayplus/base/logging.dart';
-import 'package:cloudplayplus/dev_settings.dart/develop_settings.dart';
-import 'package:cloudplayplus/entities/device.dart';
-import 'package:cloudplayplus/entities/messages.dart';
-import 'package:cloudplayplus/global_settings/streaming_settings.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/services/streamed_manager.dart';
-import 'package:cloudplayplus/services/webrtc_service.dart';
-import 'package:cloudplayplus/webrtctest/rtc_service_impl.dart';
+import 'package:slc/base/logging.dart';
+import 'package:slc/dev_settings.dart/develop_settings.dart';
+import 'package:slc/entities/device.dart';
+import 'package:slc/entities/messages.dart';
+import 'package:slc/global_settings/streaming_settings.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/services/streamed_manager.dart';
+import 'package:slc/services/webrtc_service.dart';
+import 'package:slc/webrtctest/rtc_service_impl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:synchronized/synchronized.dart';

@@ -1,8 +1,10 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:cloudplayplus/entities/device.dart';
-import 'package:cloudplayplus/services/streaming_manager.dart';
-import 'package:cloudplayplus/services/webrtc_service.dart';
-import 'package:cloudplayplus/services/websocket_service.dart';
+import 'package:slc/entities/device.dart';
+import 'package:slc/services/streaming_manager.dart';
+import 'package:slc/services/webrtc_service.dart';
+import 'package:slc/services/websocket_service.dart';
+import 'package:slc/control_plane/node_agent_config.dart';
+import 'package:slc/services/node_agent_service.dart';
 import 'package:flutter/material.dart';
 import '../../../plugins/flutter_master_detail/flutter_master_detail.dart';
 import '../services/app_info_service.dart';
@@ -88,6 +90,10 @@ class _DevicesPageState extends State<DevicesPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 节点模式：显示简化的状态页面，避免卡在"初始化..."
+    if (NodeAgentConfig.enabled) {
+      return _buildNodeModeStatusPage(context);
+    }
     return MasterDetailsList<Device>(
       items: _deviceList, // 使用_fantasyList作为数据源
       groupedBy: (data) => data.uid,
@@ -249,6 +255,55 @@ class _DevicesPageState extends State<DevicesPage> {
       //non-android TV
       :IconBuilder.findIconByName(data.devicetype),
       selected: isSelected,
+    );
+  }
+
+  /// 节点模式专用状态页面
+  Widget _buildNodeModeStatusPage(BuildContext context) {
+    final nodeAgent = NodeAgentService.instance;
+    final isConnected = nodeAgent?.isConnected ?? false;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('算力池节点'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isConnected ? Icons.cloud_done : Icons.cloud_off,
+                size: 80,
+                color: isConnected ? Colors.green : Colors.grey,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                isConnected ? '节点已上线' : '节点离线',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '设备 ID: ${NodeAgentConfig.deviceId}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '服务器: ${NodeAgentConfig.apiUrl}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 24),
+              if (isConnected)
+                const Text(
+                  '等待远程连接请求...',
+                  style: TextStyle(color: Colors.grey),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

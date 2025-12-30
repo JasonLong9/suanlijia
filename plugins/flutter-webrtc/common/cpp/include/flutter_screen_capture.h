@@ -53,6 +53,7 @@ class FlutterScreenCapture : public MediaListObserver,
   FlutterWebRTCBase* base_;
   std::map<DesktopType, scoped_refptr<RTCDesktopMediaList>> medialist_;
   std::vector<scoped_refptr<MediaSource>> sources_;
+  std::string last_error_;
 };
 
 }  // namespace flutter_webrtc_plugin

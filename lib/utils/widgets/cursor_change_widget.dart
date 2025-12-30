@@ -1,6 +1,6 @@
-import 'package:cloudplayplus/controller/hardware_input_controller.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/services/webrtc_service.dart';
+import 'package:slc/controller/hardware_input_controller.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/services/webrtc_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

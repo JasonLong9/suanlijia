@@ -1,10 +1,11 @@
 // system_tray_manager.dart
 import 'dart:io';
-import 'package:cloudplayplus/services/app_info_service.dart';
+import 'package:slc/services/app_info_service.dart';
 import 'package:hardware_simulator/hardware_simulator.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_window_close/flutter_window_close.dart';
+import '../config/custom_config.dart';
 
 class SystemTrayManager {
   static final SystemTrayManager _instance = SystemTrayManager._internal();
@@ -70,10 +71,11 @@ class SystemTrayManager {
           onClicked: (_) => restart(),
         ),
       MenuSeparator(),
-      MenuItemLabel(
-        label: '退出云玩加',
-        onClicked: (_) => exitApp(),
-      ),
+      if (!CustomConfig.isV11)
+        MenuItemLabel(
+          label: '退出云玩加',
+          onClicked: (_) => exitApp(),
+        ),
     ]);
     await _systemTray.setContextMenu(_menu);
   }

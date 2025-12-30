@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/tiles/abstract_settings_tile.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/tiles/platforms/android_settings_tile.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/tiles/platforms/ios_settings_tile.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/tiles/platforms/web_settings_tile.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/utils/platform_utils.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/utils/settings_theme.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/tiles/abstract_settings_tile.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/tiles/platforms/android_settings_tile.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/tiles/platforms/ios_settings_tile.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/tiles/platforms/web_settings_tile.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/utils/platform_utils.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/utils/settings_theme.dart';
 
 enum SettingsTileType { simpleTile, switchTile, navigationTile }
 

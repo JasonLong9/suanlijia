@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/utils/widgets/on_screen_remote_mouse.dart';
+import 'package:slc/utils/widgets/on_screen_remote_mouse.dart';
 import 'dart:typed_data';
 import 'package:hardware_simulator/hardware_simulator.dart';
 

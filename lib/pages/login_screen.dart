@@ -1,13 +1,14 @@
-import 'package:cloudplayplus/pages/main_page.dart';
-import 'package:cloudplayplus/services/secure_storage_manager.dart';
-import 'package:cloudplayplus/services/shared_preferences_manager.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
+import 'package:slc/pages/main_page.dart';
+import 'package:slc/services/secure_storage_manager.dart';
+import 'package:slc/services/shared_preferences_manager.dart';
+import 'package:slc/services/app_info_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../dev_settings.dart/develop_settings.dart';
 import '../services/login_service.dart';
+import '../config/custom_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -79,6 +80,37 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+
+    // V11 定制逻辑
+    if (CustomConfig.isV11) {
+      _savedEmail = CustomConfig.defaultUsername;
+      _savedPassword = CustomConfig.defaultPassword;
+      _isLoading = false; // 停止加载状态，直接显示或自动登录
+
+      if (CustomConfig.autoLogin) {
+        // 延迟一点时间确保 UI 构建完成，然后自动触发登录
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _authUser(LoginData(name: _savedEmail!, password: _savedPassword!))
+              .then((error) {
+            if (error == null) {
+              // 登录成功，手动触发跳转 (参考 onSubmitAnimationCompleted)
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MainScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              }
+            } else {
+              // 登录失败，显示错误 (FlutterLogin 会自动处理，或者我们可以弹窗)
+              debugPrint("Auto login failed: $error");
+            }
+          });
+        });
+      }
+      return; // 跳过原本的 SecureStorage 逻辑
+    }
+
     if (DevelopSettings.useSecureStorage) {
       SecureStorageManager.getString('username').then((value) {
         setState(() {
@@ -109,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return FlutterLogin(
         savedEmail: _savedEmail ?? "",
         savedPassword: _savedPassword ?? "",
-        title: 'CloudPlay Plus',
+        title: CustomConfig.isV11 ? CustomConfig.appName : 'CloudPlay Plus',
         logo: const AssetImage('assets/images/cpp_logo.png'),
         userType: LoginUserType.name,
         onLogin: _authUser,

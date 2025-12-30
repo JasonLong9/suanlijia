@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>CloudPlayPlus Downloads</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    h1 {
+      border-bottom: 2px solid #eee;
+      padding-bottom: 0.5rem;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+
+    li:hover {
+      background: #f9f9f9;
+    }
+
+    a {
+      font-weight: bold;
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .note {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+
+    strong {
+      color: #d9534f;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>CloudPlayPlus 客户端下载</h1>
+  <ul>
+    <li>
+      <a href="SLCNode-win64-GUI-Release.zip">SLCNode-win64-GUI-Release.zip</a>
+      <div class="note"><strong>🆕 GUI 测试版</strong> - 手动登录模式，用于验证远程连接功能（无需 node.json 配置）</div>
+    </li>
+    <li>
+      <a href="SLCNode-win64-v12.2-Release.zip">SLCNode-win64-v12.2-Release.zip</a>
+      <div class="note">SLC 节点完整包 v12.2：<strong>远程连接修复版</strong> - 修复 Headless 模式下无法进行远程连接的问题</div>
+    </li>
+    <li>
+      <a href="SLCNode-win64-v12.1-Release.zip">SLCNode-win64-v12.1-Release.zip</a>
+      <div class="note">SLC 节点完整包 v12.1：<strong>心跳修复版</strong> - 修复 Headless 模式心跳日志错误显示 none 的问题</div>
+    </li>
+    <li>
+      <a href="SLCNode-win64-v12-Release.zip">SLCNode-win64-v12-Release.zip</a>
+      <div class="note">SLC 节点完整包 v12.0：<strong>调试增强版</strong> - 修复日志系统，增加详细调试信息</div>
+    </li>
+    <li>
+      <a href="SLCNode-win64-v11-Release.zip">SLCNode-win64-v11-Release.zip</a>
+      <div class="note">SLC 节点完整包 v11.0：算力橙定制版</div>
+    </li>
+  </ul>
+
+  <h2>安装说明</h2>
+  <ul>
+    <li><strong>GUI 测试版</strong>：解压后运行 <code>slc.exe</code>，手动登录账号后启用"允许远程控制"。</li>
+    <li><strong>V12.2/V12.1/V12/V11 定制版安装</strong>：解压后直接运行 <code>start_v12.bat</code> (或
+      <code>start_v11.bat</code>)。程序会自动隐藏并在后台运行。</li>
+    <li><strong>保活配置</strong>：建议使用 PowerShell 运行 <code>watchdog.ps1</code> 以确保程序崩溃后自动重启。</li>
+    <li><strong>日志查看</strong>：V12.2 版本的日志位于 <code>C:\ProgramData\SLC\logs\agent.log</code>。</li>
+  </ul>
+</body>
+
+</html>

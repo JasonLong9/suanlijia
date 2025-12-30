@@ -1,8 +1,8 @@
 /*import 'dart:convert';
 
-import 'package:cloudplayplus/services/network/app_info_service.dart';
-import 'package:cloudplayplus/services/webrtc/rtc_service_impl.dart';
-import 'package:cloudplayplus/utils/widgets/device.dart';
+import 'package:slc/services/network/app_info_service.dart';
+import 'package:slc/services/webrtc/rtc_service_impl.dart';
+import 'package:slc/utils/widgets/device.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';

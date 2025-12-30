@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/flutter_settings_ui.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/tiles/platforms/ios_settings_tile.dart';
+import 'package:slc/plugins/flutter_settings_ui/flutter_settings_ui.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/tiles/platforms/ios_settings_tile.dart';
 
 class IOSSettingsSection extends StatelessWidget {
   const IOSSettingsSection({

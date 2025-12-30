@@ -1,4 +1,4 @@
-import 'package:cloudplayplus/services/app_info_service.dart';
+import 'package:slc/services/app_info_service.dart';
 import 'package:flutter/material.dart';
 import 'desktop_view.dart';
 import 'elements_view_model.dart';

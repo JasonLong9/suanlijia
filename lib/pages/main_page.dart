@@ -1,10 +1,10 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:cloudplayplus/controller/screen_controller.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/services/streamed_manager.dart';
-import 'package:cloudplayplus/services/websocket_service.dart';
-import 'package:cloudplayplus/theme/fixed_colors.dart';
-import 'package:cloudplayplus/utils/system_tray_manager.dart';
+import 'package:slc/controller/screen_controller.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/services/streamed_manager.dart';
+import 'package:slc/services/websocket_service.dart';
+import 'package:slc/theme/fixed_colors.dart';
+import 'package:slc/utils/system_tray_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import '../settings_screen.dart';

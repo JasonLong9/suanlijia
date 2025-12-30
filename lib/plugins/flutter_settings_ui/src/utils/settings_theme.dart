@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloudplayplus/plugins/flutter_settings_ui/src/utils/platform_utils.dart';
+import 'package:slc/plugins/flutter_settings_ui/src/utils/platform_utils.dart';
 
 class SettingsTheme extends InheritedWidget {
   final SettingsThemeData themeData;

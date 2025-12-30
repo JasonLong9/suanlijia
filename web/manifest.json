@@ -1,6 +1,6 @@
 {
-    "name": "cloudplayplus",
-    "short_name": "cloudplayplus",
+    "name": "slc",
+    "short_name": "slc",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#hexcode",

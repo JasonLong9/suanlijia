@@ -1,6 +1,6 @@
-import 'package:cloudplayplus/base/logging.dart';
-import 'package:cloudplayplus/services/login_service.dart';
-import 'package:cloudplayplus/services/websocket_service.dart';
+import 'package:slc/base/logging.dart';
+import 'package:slc/services/login_service.dart';
+import 'package:slc/services/websocket_service.dart';
 import 'package:hardware_simulator/hardware_simulator.dart';
 
 import '../dev_settings.dart/develop_settings.dart';

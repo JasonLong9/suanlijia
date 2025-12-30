@@ -1,7 +1,7 @@
-import 'package:cloudplayplus/controller/hardware_input_controller.dart';
-import 'package:cloudplayplus/controller/screen_controller.dart';
-import 'package:cloudplayplus/services/app_info_service.dart';
-import 'package:cloudplayplus/services/shared_preferences_manager.dart';
+import 'package:slc/controller/hardware_input_controller.dart';
+import 'package:slc/controller/screen_controller.dart';
+import 'package:slc/services/app_info_service.dart';
+import 'package:slc/services/shared_preferences_manager.dart';
 
 // 触控模式枚举：用于Windows设备的触控输入
 // 顺序：触摸(默认) -> 触控板 -> 鼠标

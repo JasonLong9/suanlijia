@@ -1,10 +1,10 @@
 @echo off
 
-set SERVICE_NAME=cloudplayplussvc
-set SERVICE_BIN="%~dp0\CloudPlayPlusSvc.exe"
+set SERVICE_NAME=slcsvc
+set SERVICE_BIN="%~dp0\SLCSvc.exe"
 set SERVICE_START_TYPE=auto
 
-rem Check if cloudplayplussvc already exists
+rem Check if slcsvc already exists
 sc qc %SERVICE_NAME% > nul 2>&1
 if %ERRORLEVEL%==0 (
     rem Stop the existing service if running
@@ -18,7 +18,7 @@ if %ERRORLEVEL%==0 (
 )
 
 rem Run the sc command to create/reconfigure the service
-sc %SC_CMD% %SERVICE_NAME% binPath= %SERVICE_BIN% start= %SERVICE_START_TYPE%
+sc %SC_CMD% %SERVICE_NAME% binPath= %SERVICE_BIN% start= %SERVICE_START_TYPE% DisplayName= "SLC Node Service"
 
 rem Start the new service
 net start %SERVICE_NAME%

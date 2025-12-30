@@ -1,5 +1,5 @@
 //render the global remote screen in an infinite vertical scroll view.
-import 'package:cloudplayplus/services/webrtc_service.dart';
+import 'package:slc/services/webrtc_service.dart';
 import 'package:flutter/material.dart';
 import 'package:vk/vk.dart';
 
