@@ -25,7 +25,7 @@ import '../utils/system_tray_manager.dart';
 class NodeAgentService {
   static NodeAgentService? instance;
   final LoginService _loginService;
-  
+
   NodeAgentService(this._loginService) {
     instance = this;
   }
@@ -39,7 +39,7 @@ class NodeAgentService {
   bool _reportedServiceWrapperLog = false;
   bool should_be_connected = false;
   bool _wsOpen = false;
-  
+
   static const JsonEncoder _encoder = JsonEncoder();
   static const JsonDecoder _decoder = JsonDecoder();
 
@@ -47,28 +47,31 @@ class NodeAgentService {
   String? get activeLeaseId => _activeLeaseId;
 
   /// 发送远程日志到服务器（用于崩溃前诊断）
-  static Future<void> remoteLog(String level, String message, [Map<String, dynamic>? context]) async {
+  static Future<void> remoteLog(String level, String message,
+      [Map<String, dynamic>? context]) async {
     try {
       String baseUrl = LoginService.baseUrl;
       if (NodeAgentConfig.enabled && NodeAgentConfig.apiUrl.isNotEmpty) {
         baseUrl = NodeAgentConfig.apiUrl;
       }
       final url = '$baseUrl/api/client/log/';
-      final deviceId = NodeAgentConfig.deviceId.isNotEmpty 
-          ? NodeAgentConfig.deviceId 
+      final deviceId = NodeAgentConfig.deviceId.isNotEmpty
+          ? NodeAgentConfig.deviceId
           : 'unknown';
-      
-      await http.post(
-        Uri.parse(url),
-        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
-        body: jsonEncode({
-          'device_id': deviceId,
-          'level': level,
-          'message': message,
-          'timestamp': DateTime.now().toIso8601String(),
-          'context': context,
-        }),
-      ).timeout(const Duration(seconds: 2));
+
+      await http
+          .post(
+            Uri.parse(url),
+            headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+            body: jsonEncode({
+              'device_id': deviceId,
+              'level': level,
+              'message': message,
+              'timestamp': DateTime.now().toIso8601String(),
+              'context': context,
+            }),
+          )
+          .timeout(const Duration(seconds: 2));
     } catch (_) {
       // 忽略日志发送失败
     }
@@ -106,8 +109,9 @@ class NodeAgentService {
             (start > 0 && parts.isNotEmpty) ? parts.sublist(1) : parts;
         final trimmed = lines.map((l) => l.trim()).where((l) => l.isNotEmpty);
         final list = trimmed.toList();
-        final tail =
-            list.length > maxLines ? list.sublist(list.length - maxLines) : list;
+        final tail = list.length > maxLines
+            ? list.sublist(list.length - maxLines)
+            : list;
         unawaited(remoteLog('INFO', '[slcsvc] tail', {
           'lines': tail,
         }));
@@ -141,17 +145,20 @@ class NodeAgentService {
     should_be_connected = true;
     _ensureUserInitialized();
     _reportServiceWrapperLogOnce();
-    
+
     if (NodeAgentConfig.isHeadless) {
-      _debugLog('NodeAgentService.init: skipping _clearLeaseState in headless mode');
-      VLOG0('NodeAgentService.init: skipping _clearLeaseState in headless mode');
+      _debugLog(
+          'NodeAgentService.init: skipping _clearLeaseState in headless mode');
+      VLOG0(
+          'NodeAgentService.init: skipping _clearLeaseState in headless mode');
     } else {
       await _clearLeaseState(stopSessions: true);
     }
 
     if (NodeAgentConfig.deviceId.isEmpty ||
         NodeAgentConfig.deviceSecret.isEmpty) {
-      _debugLog('NodeMode: missing CPP_DEVICE_ID/CPP_DEVICE_SECRET, skip connect');
+      _debugLog(
+          'NodeMode: missing CPP_DEVICE_ID/CPP_DEVICE_SECRET, skip connect');
       VLOG0('NodeMode: missing CPP_DEVICE_ID/CPP_DEVICE_SECRET, skip connect');
       return;
     }
@@ -203,7 +210,7 @@ class NodeAgentService {
       } else {
         await _clearLeaseState(stopSessions: true);
       }
-      
+
       if (should_be_connected) {
         _reconnectTimer?.cancel();
         _reconnectTimer =
@@ -229,7 +236,8 @@ class NodeAgentService {
     should_be_connected = false;
     _stopNodeHeartbeat();
     if (NodeAgentConfig.isHeadless) {
-      VLOG0('NodeAgentService.disconnect: skipping _clearLeaseState in headless mode');
+      VLOG0(
+          'NodeAgentService.disconnect: skipping _clearLeaseState in headless mode');
     } else {
       await _clearLeaseState(stopSessions: true);
     }
@@ -244,7 +252,7 @@ class NodeAgentService {
     var data = mapData['data'];
     final msgType = mapData['type'];
     VLOG0('[NodeAgentService] onMessage: type=$msgType');
-    
+
     // v3.22: 增加远程日志以诊断消息处理
     unawaited(remoteLog('INFO', '[v3.22] onMessage: type=$msgType'));
 
@@ -252,11 +260,13 @@ class NodeAgentService {
       case 'connection_info':
         {
           VLOG0('[NodeAgentService] Received connection_info');
-          AppStateService.lastwebsocketSessionid = AppStateService.websocketSessionid;
+          AppStateService.lastwebsocketSessionid =
+              AppStateService.websocketSessionid;
           AppStateService.websocketSessionid = data['connection_id'];
-          
+
           // Update User and thisDevice for StreamingSession validation
-          ApplicationInfo.user = User(uid: data['uid'], nickname: data['nickname']);
+          ApplicationInfo.user =
+              User(uid: data['uid'], nickname: data['nickname']);
           ApplicationInfo.thisDevice = Device(
             uid: data['uid'],
             nickname: data['nickname'],
@@ -266,7 +276,8 @@ class NodeAgentService {
             connective: true,
             screencount: ApplicationInfo.screenCount,
           );
-          VLOG0('[NodeAgentService] Session ID initialized: ${AppStateService.websocketSessionid}');
+          VLOG0(
+              '[NodeAgentService] Session ID initialized: ${AppStateService.websocketSessionid}');
         }
       case 'lease_assigned':
         {
@@ -294,63 +305,94 @@ class NodeAgentService {
           }
           _activeLeaseToken = null;
           if (NodeAgentConfig.isHeadless) {
-            VLOG0('NodeAgentService.onMessage: lease_release skipping _clearLeaseState in headless mode');
+            VLOG0(
+                'NodeAgentService.onMessage: lease_release skipping _clearLeaseState in headless mode');
           } else {
             await _clearLeaseState(stopSessions: true);
           }
           if (!kIsWeb && Platform.isWindows) {
-             try {
-               // HardwareSimulator.rebootSystem();
-             } catch (e) {
-               VLOG0('Reboot failed: $e');
-             }
+            try {
+              // HardwareSimulator.rebootSystem();
+            } catch (e) {
+              VLOG0('Reboot failed: $e');
+            }
           }
         }
       // === WebRTC 信令消息处理 ===
       case 'remoteSessionRequested':
         {
           VLOG0('[NodeAgentService] Received remoteSessionRequested!');
-          unawaited(remoteLog('INFO', '收到远程连接请求', {'requester': '云玩加网页端'}));
           final payload = data is Map ? data : const <String, dynamic>{};
           final requesterInfo = payload['requester_info'];
           final rawSettings = payload['settings'];
+          unawaited(remoteLog(
+              'INFO', '[NodeAgentService] remoteSessionRequested received', {
+            'has_requester_info': requesterInfo != null,
+            'requester_device_name':
+                requesterInfo is Map ? requesterInfo['device_name'] : null,
+            'settings_type': rawSettings?.runtimeType.toString(),
+            'settings_keys': rawSettings is Map
+                ? rawSettings.keys.map((k) => k.toString()).toList()
+                : null,
+          }));
           if (requesterInfo != null && rawSettings is Map) {
             final settings = Map<String, dynamic>.from(rawSettings);
 
             // Lease node: some controllers may omit connectPassword in settings.
             final connectPassword = settings['connectPassword'];
-            if ((connectPassword == null || (connectPassword is String && connectPassword.isEmpty)) &&
+            if ((connectPassword == null ||
+                    (connectPassword is String && connectPassword.isEmpty)) &&
                 _activeLeaseToken != null &&
                 NodeAgentConfig.enabled) {
               settings['connectPassword'] = _activeLeaseToken!;
-              VLOG0('[NodeAgentService] remoteSessionRequested: filled connectPassword from active lease token');
+              VLOG0(
+                  '[NodeAgentService] remoteSessionRequested: filled connectPassword from active lease token');
             }
 
-            // Headless node (service) on headless GPUs often has no physical monitor.
-            // Only default streamMode when the controller truly omitted it.
-            // If controller explicitly sends streamMode=0 (default capture), respect it.
-            final streamMode = settings['streamMode'];
-            final isUnspecifiedStreamMode = streamMode == null;
-            if (NodeAgentConfig.enabled &&
-                NodeAgentConfig.isHeadless &&
-                isUnspecifiedStreamMode) {
-              settings['streamMode'] = VDISPLAY_OCCUPY;
-              settings['targetScreenId'] ??= 0;
-              settings['customScreenWidth'] ??= 1920;
-              settings['customScreenHeight'] ??= 1080;
-              VLOG0(
-                  '[NodeAgentService] remoteSessionRequested: defaulted streamMode=VDISPLAY_OCCUPY (headless node, unspecified streamMode)');
-            }
+            // Headless node (service) is allowed to try default capture first.
+            // Do not force virtual display mode here; let the controller decide via settings.streamMode.
 
             // Ensure targetScreenId exists (some clients may omit it).
             settings['targetScreenId'] ??= 0;
 
-            VLOG0('[NodeAgentService] Calling StreamedManager.startStreaming...');
-            await StreamedManager.startStreaming(
-                Device.fromJson(requesterInfo),
-                StreamedSettings.fromJson(settings));
+            VLOG0(
+                '[NodeAgentService] Calling StreamedManager.startStreaming...');
+            try {
+              final safeSettings = Map<String, dynamic>.from(settings);
+              // Avoid leaking the raw lease token in logs.
+              if (safeSettings.containsKey('connectPassword')) {
+                final v = safeSettings['connectPassword'];
+                safeSettings['connectPassword'] =
+                    v is String ? '***len=${v.length}***' : '***redacted***';
+              }
+              unawaited(
+                  remoteLog('INFO', '[NodeAgentService] startStreaming begin', {
+                'target_connection_id': requesterInfo is Map
+                    ? requesterInfo['connection_id']
+                    : null,
+                'settings': safeSettings,
+              }));
+
+              await StreamedManager.startStreaming(
+                  Device.fromJson(requesterInfo),
+                  StreamedSettings.fromJson(settings));
+              unawaited(remoteLog(
+                  'INFO', '[NodeAgentService] startStreaming returned'));
+            } catch (e) {
+              unawaited(remoteLog(
+                  'ERROR', '[NodeAgentService] startStreaming threw', {
+                'error': e.toString(),
+              }));
+              rethrow;
+            }
           } else {
-            VLOG0('[NodeAgentService] remoteSessionRequested: missing requester_info or settings');
+            VLOG0(
+                '[NodeAgentService] remoteSessionRequested: missing requester_info or settings');
+            unawaited(remoteLog('WARN',
+                '[NodeAgentService] remoteSessionRequested invalid payload', {
+              'requester_info_type': requesterInfo?.runtimeType.toString(),
+              'settings_type': rawSettings?.runtimeType.toString(),
+            }));
           }
         }
       case 'answer':
@@ -368,7 +410,8 @@ class NodeAgentService {
       case 'restartRequested':
         {
           VLOG0('[NodeAgentService] Received restartRequested');
-          if (StreamingSettings.connectPasswordHash == HashUtil.hash(data['password'])) {
+          if (StreamingSettings.connectPasswordHash ==
+              HashUtil.hash(data['password'])) {
             VLOG0('[NodeAgentService] Password verified, restarting...');
             SystemTrayManager().restart();
           } else {
@@ -398,7 +441,8 @@ class NodeAgentService {
           ? (target.length > 8 ? '${target.substring(0, 8)}...' : target)
           : '$target';
       final sdpLen = sdp is String ? sdp.length : null;
-      VLOG0('[NodeAgentService] send offer -> target=$targetStr sdpLen=$sdpLen');
+      VLOG0(
+          '[NodeAgentService] send offer -> target=$targetStr sdpLen=$sdpLen');
     } else if (event == 'answer' && data is Map) {
       final target = data['target_connectionid'];
       final targetStr = target is String
@@ -433,7 +477,8 @@ class NodeAgentService {
         }),
       );
       _debugLog('_fetchDeviceToken: status=${response.statusCode}');
-      VLOG0('NodeAgentService._fetchDeviceToken: status=${response.statusCode}');
+      VLOG0(
+          'NodeAgentService._fetchDeviceToken: status=${response.statusCode}');
       if (response.statusCode != 200) {
         _debugLog('_fetchDeviceToken: error body=${response.body}');
         VLOG0('NodeAgentService._fetchDeviceToken: body=${response.body}');
@@ -464,13 +509,15 @@ class NodeAgentService {
     final hash = HashUtil.hash(leaseToken);
     StreamingSettings.connectPasswordHash = hash;
     if (NodeAgentConfig.isHeadless) {
-      VLOG0('NodeAgentService._applyLeaseCredentials: skipping SharedPreferences in headless mode');
+      VLOG0(
+          'NodeAgentService._applyLeaseCredentials: skipping SharedPreferences in headless mode');
     } else {
       await SharedPreferencesManager.setString('connectPasswordHash', hash);
     }
     ApplicationInfo.connectable = true;
     if (NodeAgentConfig.isHeadless) {
-      VLOG0('NodeAgentService._applyLeaseCredentials: skipping SharedPreferences in headless mode');
+      VLOG0(
+          'NodeAgentService._applyLeaseCredentials: skipping SharedPreferences in headless mode');
     } else {
       await SharedPreferencesManager.setBool('allowConnect', true);
     }
@@ -484,7 +531,8 @@ class NodeAgentService {
     StreamingSettings.connectPasswordHash = '';
 
     if (NodeAgentConfig.isHeadless) {
-      VLOG0('NodeAgentService._clearLeaseState: skipping SharedPreferences in headless mode');
+      VLOG0(
+          'NodeAgentService._clearLeaseState: skipping SharedPreferences in headless mode');
     } else {
       await SharedPreferencesManager.setBool('allowConnect', false);
       await SharedPreferencesManager.setString('connectPasswordHash', '');

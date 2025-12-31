@@ -56,21 +56,22 @@
   <h1>SLC 算力橙客户端下载</h1>
   <ul>
     <li>
+      <a href="SLC-Pool-Node-GUI-v3.24.zip">SLC-Pool-Node-GUI-v3.24.zip</a>
+      <div class="note"><strong>最新 V3.24 稳定版</strong> - 绕过 getSources 崩溃点，直接捕获主屏幕</div>
+    </li>
+    <li>
       <a href="SLC-Pool-Node-GUI-v3.20.zip">SLC-Pool-Node-GUI-v3.20.zip</a>
-      <div class="note"><strong>最新 V3.20 版</strong> - 修复节点模式下 GUI 卡在"初始化..."的问题</div>
+      <div class="note">V3.20 版 - 修复节点模式下 GUI 卡在"初始化..."的问题</div>
     </li>
     <li>
       <a href="SLC-Pool-Node-GUI-v3.19.zip">SLC-Pool-Node-GUI-v3.19.zip</a>
-      <div class="note">V3.19 版 - 添加详细的远程诊断日志，用于定位崩溃点</div>
-    </li>
-    <li>
-      <a href="SLC-Pool-Node-GUI-v3.18.zip">SLC-Pool-Node-GUI-v3.18.zip</a>
-      <div class="note">V3.18 版 - 修复信令路由、WebRTC 初始化顺序及屏幕捕获诊断</div>
+      <div class="note">V3.19 版 - 添加详细的远程诊断日志</div>
     </li>
   </ul>
   <h2>安装说明</h2>
   <ul>
-    <li><strong>V3.20 节点版</strong>：解压后运行 SLC.exe，自动登录并注册为节点。修复了 GUI 界面卡死问题，确保后台服务正常运行。</li>
+    <li><strong>V3.24 稳定版</strong>：解压后运行 SLC.exe，自动登录并注册为节点。此版本绕过了可能导致崩溃的屏幕源枚举调用，直接捕获主屏幕。</li>
+    <li><strong>重要</strong>：必须在用户桌面会话（Session 1）运行，不要作为 Session 0 服务运行。</li>
   </ul>
 </body>
 

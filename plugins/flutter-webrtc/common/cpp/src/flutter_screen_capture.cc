@@ -267,16 +267,49 @@ void FlutterScreenCapture::GetDisplayMedia(
     video_constraints = GetValue<EncodableMap>(it->second);
   }
 
-  scoped_refptr<MediaSource> source;
-  for (auto src : sources_) {
-    if (src->id().std_string() == source_id) {
-      source = src;
+  // getDisplayMedia may be called directly (without a prior getSources call),
+  // in which case sources_ is empty. Also, sources_ may contain a different
+  // type (window vs screen) depending on previous calls. Ensure we have a fresh
+  // list for the requested type.
+  const bool want_window = source_id.rfind("window:", 0) == 0;
+  const bool want_screen = !want_window;
+
+  auto build_sources = [&](const char* type) -> bool {
+    EncodableList types;
+    types.emplace_back(EncodableValue(type));
+    return BuildDesktopSourcesList(types, true);
+  };
+
+  auto find_source = [&]() -> scoped_refptr<MediaSource> {
+    scoped_refptr<MediaSource> found;
+    for (auto src : sources_) {
+      if (src->id().std_string() == source_id) {
+        found = src;
+      }
     }
+    return found;
+  };
+
+  scoped_refptr<MediaSource> source = find_source();
+  if (!source.get()) {
+    if (!build_sources(want_window ? "window" : "screen")) {
+      result->Error("ScreenCaptureError",
+                    last_error_.empty() ? "Failed to get desktop sources"
+                                        : last_error_);
+      return;
+    }
+    source = find_source();
   }
 
   if (!source.get()) {
-    result->Error("Bad Arguments", "source not found!");
-    return;
+    // If a specific screen id was not found but we have at least one screen,
+    // fall back to the first screen source (primary screen).
+    if (want_screen && !sources_.empty()) {
+      source = sources_.front();
+    } else {
+      result->Error("Bad Arguments", "source not found!");
+      return;
+    }
   }
 
   scoped_refptr<RTCDesktopCapturer> desktop_capturer =

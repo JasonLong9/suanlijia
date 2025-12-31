@@ -5,8 +5,9 @@
   "region": "hk",
   "gpu_tier": "tier_7",
   "heartbeat_seconds": 10,
-  "agent_version": "0.1.0",
+  "agent_version": "3.3.0",
+  "city": "HongKong",
+  "api_url": "http://<control-plane-host>:18080",
   "reboot_on_release": true,
   "reboot_delay_seconds": 3
 }
-

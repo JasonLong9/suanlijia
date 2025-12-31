@@ -533,9 +533,9 @@ class DownloadPageView(APIView):
     <h1>算力橙 (SLC) 客户端下载</h1>
     
     <div class="download-item primary-download">
-        <a href="/api/download/pool-node/" class="btn btn-primary">下载 算力池节点版 (v3.21 推荐)</a>
+        <a href="/api/download/pool-node/" class="btn btn-primary">下载 算力池节点版 (v3.24 推荐)</a>
         <span class="tag tag-recommended">推荐</span>
-        <div class="desc">基于官方 GUI + 节点注册功能，自动加入算力池，稳定可靠</div>
+        <div class="desc">修复黑屏/无界面问题，增强远程连接稳定性 (推荐)</div>
     </div>
     
     <div class="download-item">
@@ -625,10 +625,10 @@ class DownloadPoolNodeView(APIView):
             return HttpResponse('File not found', status=404)
         
         response = FileResponse(
-            open(file_path, 'rb'),
+            open('/SuanLiJia/SLC-Pool-Node-GUI-v3.24.zip', 'rb'),
             content_type='application/zip'
         )
-        response['Content-Disposition'] = 'attachment; filename="SLC-Pool-Node-GUI-v3.21.zip"'
+        response['Content-Disposition'] = 'attachment; filename="SLC-Pool-Node-GUI-v3.24.zip"'
         return response
 
 
