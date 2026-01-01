@@ -188,14 +188,19 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
     );
 
     if (confirm == true) {
-      // TODO: 调用后端 API 删除服务器
-      setState(() {
-        _servers.removeWhere((s) => s.id == server.id);
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已删除 ${server.name}')),
-        );
+      try {
+        await getIt<ControlPlaneController>().deleteNode(server.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('服务器 ${server.name} 已成功删除')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('删除失败: $e')),
+          );
+        }
       }
     }
   }

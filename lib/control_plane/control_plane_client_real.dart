@@ -253,6 +253,18 @@ class ControlPlaneClientReal implements ControlPlaneClient {
   }
 
   @override
+  Future<void> deletePoolNode(String deviceId) async {
+    final baseUrl = LoginService.baseUrl;
+    final uri = Uri.parse('$baseUrl/api/admin/nodes/$deviceId/delete/');
+
+    final response = await http.delete(uri, headers: await _getHeaders());
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final body = _decodeJson(response);
+      throw _asApiException(body, fallbackCode: 'HTTP_${response.statusCode}');
+    }
+  }
+
+  @override
   void dispose() {
     disconnect();
     _poolUpdatesController.close();

@@ -35,5 +35,7 @@ abstract class ControlPlaneClient {
     required Map<String, dynamic> settings,
   });
 
+  Future<void> deletePoolNode(String deviceId);
+
   void dispose();
 }

@@ -113,6 +113,11 @@ class ControlPlaneController extends ChangeNotifier {
     return billingInfo!;
   }
 
+  Future<void> deleteNode(String deviceId) async {
+    await _client.deletePoolNode(deviceId);
+    await refreshPool();
+  }
+
   Future<void> requestRemoteControlLease({
     required String leaseId,
     required Map<String, dynamic> settings,

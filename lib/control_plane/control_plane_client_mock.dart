@@ -257,6 +257,12 @@ class ControlPlaneClientMock implements ControlPlaneClient {
   }
 
   @override
+  Future<void> deletePoolNode(String deviceId) async {
+    print('Mock: deleting node $deviceId');
+    _nodesById.remove(deviceId);
+    _emitPoolFull();
+  }
+
   void dispose() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
