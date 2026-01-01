@@ -2,6 +2,7 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:slc/controller/screen_controller.dart';
 import 'package:slc/pages/control_plane/billing_page.dart';
 import 'package:slc/pages/control_plane/leases_page.dart';
+import 'package:slc/pages/admin/cluster_dashboard_page.dart';
 import 'package:slc/services/app_info_service.dart';
 import 'package:slc/services/streamed_manager.dart';
 import 'package:slc/services/websocket_service.dart';
@@ -12,7 +13,6 @@ import 'package:window_manager/window_manager.dart';
 import '../settings_screen.dart';
 import '../service_locator.dart';
 import '../control_plane/control_plane_controller.dart';
-import 'devices_page.dart';
 import 'control_plane/pool_page.dart';
 
 class MainScreen extends StatefulWidget {
@@ -24,6 +24,10 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  
+  // TODO: 从 AuthBloc 获取实际管理员状态
+  // 目前硬编码为 true 以便测试
+  bool get _isAdmin => true;
 
   @override
   initState() {
@@ -49,35 +53,64 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       return;
     }
 
-    _children = [
-      DevicesPage(),
-      const PoolPage(),
-      const LeasesPage(),
-      const BillingPage(),
-      const SettingsScreen(),
-    ];
-    _navItems = const [
-      BottomNavigationBarItem(
-        icon: Icon(Icons.computer),
-        label: '设备',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.cloud),
-        label: '资源池',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.assignment),
-        label: '我的租赁',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.receipt_long),
-        label: '账单',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.settings),
-        label: '设置',
-      ),
-    ];
+    // 根据是否为管理员显示不同的导航
+    if (_isAdmin) {
+      _children = [
+        const ClusterDashboardPage(),  // 管理员: 集群管理
+        const PoolPage(),
+        const LeasesPage(),
+        const BillingPage(),
+        const SettingsScreen(),
+      ];
+      _navItems = const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dns),
+          label: '集群',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.cloud),
+          label: '资源池',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assignment),
+          label: '我的租赁',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.receipt_long),
+          label: '账单',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings),
+          label: '设置',
+        ),
+      ];
+    } else {
+      // 普通用户: 没有集群管理，从资源池开始
+      _children = [
+        const PoolPage(),
+        const LeasesPage(),
+        const BillingPage(),
+        const SettingsScreen(),
+      ];
+      _navItems = const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.cloud),
+          label: '资源池',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assignment),
+          label: '我的租赁',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.receipt_long),
+          label: '账单',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings),
+          label: '设置',
+        ),
+      ];
+    }
   }
 
   @override
