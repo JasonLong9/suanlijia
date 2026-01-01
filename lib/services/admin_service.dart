@@ -73,4 +73,33 @@ class AdminService {
       throw Exception('Force release failed: ${response.statusCode}');
     }
   }
+
+  Future<PoolNode> updateNode({
+    required String deviceId,
+    String? nickname,
+    String? region,
+    String? gpuTier,
+  }) async {
+    final baseUrl = LoginService.baseUrl;
+    final url = Uri.parse('$baseUrl/api/admin/nodes/$deviceId/');
+    final payload = <String, dynamic>{
+      if (nickname != null) 'nickname': nickname,
+      if (region != null) 'region': region,
+      if (gpuTier != null) 'gpu_tier': gpuTier,
+    };
+
+    final response = await http.patch(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Update failed: ${response.statusCode}');
+    }
+    final decoded = json.decode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Invalid response');
+    }
+    return PoolNode.fromJson(decoded);
+  }
 }

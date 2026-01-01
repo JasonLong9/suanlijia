@@ -7,6 +7,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:hardware_simulator/display_data.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:hardware_simulator/hardware_simulator.dart';
+import 'package:universal_io/io.dart' as io;
 
 import '../base/logging.dart';
 import '../entities/device.dart';
@@ -56,7 +57,7 @@ class StreamedManager {
       final customConfigs = await HardwareSimulator.getCustomDisplayConfigs();
 
       List<Map<String, dynamic>> newConfigs = List.from(customConfigs);
-      
+
       bool isresolutionExist = false;
 
       for (var config in newConfigs) {
@@ -76,7 +77,8 @@ class StreamedManager {
           'refreshRate': 60,
         });
 
-        bool success = await HardwareSimulator.setCustomDisplayConfigs(newConfigs);
+        bool success =
+            await HardwareSimulator.setCustomDisplayConfigs(newConfigs);
         if (success) {
           VLOG0('添加虚拟显示器分辨率成功: ${width}x${height}');
         } else {
@@ -97,7 +99,7 @@ class StreamedManager {
         const Duration retryInterval = Duration(milliseconds: 500);
         while (retry < 10) {
           success = await HardwareSimulator.changeDisplaySettings(
-            displayId, width, height, 60);
+              displayId, width, height, 60);
           if (success) {
             VLOG0('设置虚拟显示器分辨率成功: ${width}x${height}');
             break;
@@ -107,11 +109,11 @@ class StreamedManager {
           }
         }
 
-        if (!success){
+        if (!success) {
           await HardwareSimulator.removeDisplay(displayId);
           return null;
         }
-        
+
         return displayId;
       } else {
         VLOG0('创建虚拟显示器失败');
@@ -144,7 +146,7 @@ class StreamedManager {
     int retryCount = 0;
     const int maxRetries = 5;
     const Duration retryInterval = Duration(milliseconds: 500);
-    
+
     while (retryCount < maxRetries) {
       try {
         bool success = await HardwareSimulator.restoreDisplayConfiguration();
@@ -155,20 +157,22 @@ class StreamedManager {
       } catch (e) {
         VLOG0("恢复显示器配置异常: $e");
       }
-      
+
       retryCount++;
       if (retryCount < maxRetries) {
-        VLOG0("恢复显示器配置失败，${retryInterval.inMilliseconds}ms后重试 (${retryCount}/$maxRetries)");
+        VLOG0(
+            "恢复显示器配置失败，${retryInterval.inMilliseconds}ms后重试 (${retryCount}/$maxRetries)");
         await Future.delayed(retryInterval);
       }
     }
-    
+
     VLOG0("恢复显示器配置失败，已达到最大重试次数: $maxRetries");
   }
 
   Future<void> _loadCurrentMultiDisplayMode() async {
     try {
-      MultiDisplayMode mode = await HardwareSimulator.getCurrentMultiDisplayMode();
+      MultiDisplayMode mode =
+          await HardwareSimulator.getCurrentMultiDisplayMode();
       VLOG0('Current multi-display mode: $mode');
     } catch (e) {
       VLOG0('Failed to load current multi-display mode: $e');
@@ -176,57 +180,136 @@ class StreamedManager {
   }
 
   Future<void> _setMultiDisplayMode(MultiDisplayMode mode) async {
-      await HardwareSimulator.setMultiDisplayMode(mode);
-      await _loadCurrentMultiDisplayMode();
+    await HardwareSimulator.setMultiDisplayMode(mode);
+    await _loadCurrentMultiDisplayMode();
   }
 
-  static Future<void> startStreaming(Device target, StreamedSettings settings) async {
+  static Future<void> startStreaming(
+      Device target, StreamedSettings settings) async {
     // === DEBUG LOGGING START ===
     VLOG0('[STREAM_DEBUG] ========================================');
     VLOG0('[STREAM_DEBUG] startStreaming called!');
-    VLOG0('[STREAM_DEBUG] target.websocketSessionid: ${target.websocketSessionid}');
+    VLOG0(
+        '[STREAM_DEBUG] target.websocketSessionid: ${target.websocketSessionid}');
     VLOG0('[STREAM_DEBUG] target.devicename: ${target.devicename}');
-    VLOG0('[STREAM_DEBUG] ApplicationInfo.connectable: ${ApplicationInfo.connectable}');
+    VLOG0(
+        '[STREAM_DEBUG] ApplicationInfo.connectable: ${ApplicationInfo.connectable}');
     VLOG0('[STREAM_DEBUG] settings.targetScreenId: ${settings.screenId}');
     VLOG0('[STREAM_DEBUG] settings.streamMode: ${settings.streamMode}');
-    VLOG0('[STREAM_DEBUG] settings.customScreen: ${settings.customScreenWidth}x${settings.customScreenHeight}');
-    VLOG0('[STREAM_DEBUG] settings.connectPassword: ${settings.connectPassword}');
-    VLOG0('[STREAM_DEBUG] StreamingSettings.connectPasswordHash: ${StreamingSettings.connectPasswordHash}');
+    VLOG0(
+        '[STREAM_DEBUG] settings.customScreen: ${settings.customScreenWidth}x${settings.customScreenHeight}');
+    VLOG0(
+        '[STREAM_DEBUG] settings.connectPassword: ${settings.connectPassword}');
+    VLOG0(
+        '[STREAM_DEBUG] StreamingSettings.connectPasswordHash: ${StreamingSettings.connectPasswordHash}');
     if (settings.connectPassword != null) {
-      VLOG0('[STREAM_DEBUG] Hash of received password: ${HashUtil.hash(settings.connectPassword!)}');
+      VLOG0(
+          '[STREAM_DEBUG] Hash of received password: ${HashUtil.hash(settings.connectPassword!)}');
     }
     // === DEBUG LOGGING END ===
+
+    await NodeAgentService.remoteLog(
+      'INFO',
+      '[v3.19] startStreaming params',
+      {
+        'platform': kIsWeb
+            ? 'web'
+            : (io.Platform.isWindows
+                ? 'windows'
+                : (io.Platform.isMacOS
+                    ? 'macos'
+                    : (io.Platform.isLinux ? 'linux' : 'other'))),
+        'isSystem': ApplicationInfo.isSystem,
+        'screenCount': ApplicationInfo.screenCount,
+        'connectable': ApplicationInfo.connectable,
+        'sessionName': io.Platform.environment['SESSIONNAME'],
+        'username': io.Platform.environment['USERNAME'],
+        'streamMode': settings.streamMode,
+        'targetScreenId': settings.screenId,
+        'framerate': settings.framerate,
+        'bitrate': settings.bitrate,
+      },
+      const Duration(seconds: 1),
+    );
 
     try {
       bool allowConnect = ApplicationInfo.connectable;
       if (!allowConnect) {
         VLOG0('[STREAM_DEBUG] REJECTED: allowConnect is false!');
+        await NodeAgentService.remoteLog(
+          'WARN',
+          '[v3.19] startStreaming REJECTED: connectable=false',
+          null,
+          const Duration(seconds: 1),
+        );
         return;
       }
       if (settings.connectPassword == null) {
         VLOG0('[STREAM_DEBUG] REJECTED: connectPassword is null!');
+        await NodeAgentService.remoteLog(
+          'WARN',
+          '[v3.19] startStreaming REJECTED: connectPassword=null',
+          null,
+          const Duration(seconds: 1),
+        );
         return;
       }
       if (settings.screenId == null) {
         VLOG0('[STREAM_DEBUG] REJECTED: targetScreenId is null!');
+        await NodeAgentService.remoteLog(
+          'WARN',
+          '[v3.19] startStreaming REJECTED: targetScreenId=null',
+          null,
+          const Duration(seconds: 1),
+        );
         return;
       }
       if (StreamingSettings.connectPasswordHash !=
           HashUtil.hash(settings.connectPassword!)) {
         VLOG0('[STREAM_DEBUG] REJECTED: password hash mismatch!');
-        VLOG0('[STREAM_DEBUG] Expected: ${StreamingSettings.connectPasswordHash}');
-        VLOG0('[STREAM_DEBUG] Received: ${HashUtil.hash(settings.connectPassword!)}');
+        VLOG0(
+            '[STREAM_DEBUG] Expected: ${StreamingSettings.connectPasswordHash}');
+        VLOG0(
+            '[STREAM_DEBUG] Received: ${HashUtil.hash(settings.connectPassword!)}');
+        await NodeAgentService.remoteLog(
+          'WARN',
+          '[v3.19] startStreaming REJECTED: password hash mismatch',
+          {
+            'expected_hash_set': StreamingSettings.connectPasswordHash.isNotEmpty,
+          },
+          const Duration(seconds: 1),
+        );
         return;
       }
       VLOG0(
           '[STREAM_DEBUG] PASSED: All validation checks OK, proceeding to create session...');
+      unawaited(NodeAgentService.remoteLog(
+        'INFO',
+        '[v3.19] startStreaming validation passed',
+        null,
+        const Duration(seconds: 1),
+      ));
     } catch (e, stack) {
       VLOG0('[STREAM_DEBUG] validation exception: $e\n$stack');
+      unawaited(NodeAgentService.remoteLog(
+        'ERROR',
+        '[v3.19] startStreaming validation exception',
+        {
+          'error': e.toString(),
+        },
+        const Duration(seconds: 1),
+      ));
       return;
     }
 
     try {
       await _lock.synchronized(() async {
+        final perfSw = Stopwatch()..start();
+        int createVirtualDisplayMs = 0;
+        int getSourcesMs = 0;
+        int getDisplayMediaMs = 0;
+        int sourcesCount = -1;
+
         if (sessions.containsKey(target.websocketSessionid)) {
           VLOG0(
               "Starting session which is already started: $target.websocketSessionid");
@@ -248,7 +331,9 @@ class StreamedManager {
 
           // 创建全局的Completer来等待显示器数量变化回调
           ApplicationInfo.displayCountChangedCompleter = Completer<void>();
+          final vddSw = Stopwatch()..start();
           int? virtualDisplayId = await _createVirtualDisplay(width, height);
+          createVirtualDisplayMs = vddSw.elapsedMilliseconds;
           if (virtualDisplayId != null) {
             // 使用虚拟显示器的ID作为screenId
             VLOG0("新建虚拟显示器,等待显示器被系统加载");
@@ -268,162 +353,385 @@ class StreamedManager {
             return;
           }
         }
-        if (!localVideoStreams.containsKey(settings.screenId!)) {
-          final Map<String, dynamic> mediaConstraints;
-          if (AppPlatform.isWeb) {
-            mediaConstraints = {
-              'audio': false,
-              'video': {
-                'frameRate': {'ideal': settings.framerate, 'max': settings.framerate}
-              }
-            };
-          } else {
-            var sources;
+        int? autoVirtualDisplayId;
+        bool sessionCreated = false;
+        try {
+          // Default mode fallback: if Windows has no display, create one automatically.
+          final isVirtualDisplayMode = settings.streamMode == VDISPLAY_OCCUPY ||
+              settings.streamMode == VDSIPLAY_EXTEND;
+          if (!isVirtualDisplayMode && AppPlatform.isWindows) {
+            int displayCount = ApplicationInfo.screenCount;
             try {
-              VLOG0('[STREAM_DEBUG] Calling desktopCapturer.getSources(types: [Screen])...');
-              await NodeAgentService.remoteLog('INFO', '[v3.19] 准备调用 desktopCapturer.getSources');
-              sources = await desktopCapturer.getSources(types: [SourceType.Screen]);
-              await NodeAgentService.remoteLog('INFO', '[v3.19] getSources 成功', {'count': sources.length});
-              VLOG0('[STREAM_DEBUG] desktopCapturer.getSources returned ${sources.length} sources');
-            } catch (e, stack) {
-              await NodeAgentService.remoteLog('ERROR', '[v3.19] getSources 崩溃', {'error': e.toString()});
-              VLOG0('desktopCapturer.getSources failed: $e\n$stack');
-              return;
-            }
-
-            final isVirtualDisplayMode = settings.streamMode == VDISPLAY_OCCUPY ||
-                settings.streamMode == VDSIPLAY_EXTEND;
-
-            if (!isVirtualDisplayMode) {
-              // Default mode: do not touch system display config; just validate.
-              if (sources.isEmpty) {
-                await NodeAgentService.remoteLog('WARN', '[v3.19] 屏幕源为空');
-                VLOG0(
-                    'No screen sources found (desktopCapturer.getSources returned empty).');
+              displayCount = await HardwareSimulator.getAllDisplays();
+            } catch (_) {}
+            if (displayCount <= 0) {
+              final width = settings.customScreenWidth ?? 1920;
+              final height = settings.customScreenHeight ?? 1080;
+              await NodeAgentService.remoteLog(
+                'WARN',
+                '[v3.19] 未检测到显示器，尝试创建虚拟显示器',
+                {
+                  'desired': '${width}x${height}',
+                },
+                const Duration(seconds: 1),
+              );
+              final vddSw = Stopwatch()..start();
+              autoVirtualDisplayId = await _createVirtualDisplay(width, height);
+              createVirtualDisplayMs = vddSw.elapsedMilliseconds;
+              if (autoVirtualDisplayId != null) {
+                virtualDisplayIds[settings.screenId!] = autoVirtualDisplayId!;
+                await Future.delayed(const Duration(milliseconds: 2000));
+                await NodeAgentService.remoteLog(
+                  'INFO',
+                  '[v3.19] 已创建虚拟显示器',
+                  {'display_id': autoVirtualDisplayId},
+                  const Duration(seconds: 1),
+                );
+              } else {
+                await NodeAgentService.remoteLog(
+                  'ERROR',
+                  '[v3.19] 创建虚拟显示器失败',
+                  null,
+                  const Duration(seconds: 1),
+                );
                 return;
               }
-              if (settings.screenId! < 0 || settings.screenId! >= sources.length) {
-                VLOG0(
-                    'Invalid targetScreenId=${settings.screenId} (available screens=${sources.length}).');
+            }
+          }
+
+          if (!localVideoStreams.containsKey(settings.screenId!)) {
+            MediaStream? stream;
+
+            if (AppPlatform.isWeb) {
+              final Map<String, dynamic> mediaConstraints = {
+                'audio': false,
+                'video': {
+                  'frameRate': {
+                    'ideal': settings.framerate,
+                    'max': settings.framerate,
+                  },
+                },
+              };
+              try {
+                await NodeAgentService.remoteLog(
+                  'INFO',
+                  '[v3.19] 准备调用 getDisplayMedia',
+                  null,
+                  const Duration(seconds: 1),
+                );
+                final getDisplayMediaSw = Stopwatch()..start();
+                stream = await navigator.mediaDevices
+                    .getDisplayMedia(mediaConstraints);
+                getDisplayMediaMs = getDisplayMediaSw.elapsedMilliseconds;
+                await NodeAgentService.remoteLog(
+                  'INFO',
+                  '[v3.19] getDisplayMedia 成功',
+                  null,
+                  const Duration(seconds: 1),
+                );
+              } catch (e) {
+                await NodeAgentService.remoteLog(
+                  'ERROR',
+                  '[v3.19] getDisplayMedia 失败',
+                  {'error': e.toString()},
+                  const Duration(seconds: 1),
+                );
+                VLOG0("getDisplayMedia failed.$e");
                 return;
               }
             } else {
-              // Virtual display mode: keep legacy behavior to wait for new display to appear.
-              int retryCount = 0;
-              while (sources.length <= settings.screenId!) {
+              // 先尝试“默认抓屏”（不依赖 desktopCapturer.getSources）。
+              if (!isVirtualDisplayMode && settings.screenId == 0) {
+                final directConstraints = <String, dynamic>{
+                  'video': {
+                    'mandatory': {
+                      'frameRate': settings.framerate,
+                      'hasCursor': false,
+                    }
+                  },
+                  'audio': false,
+                };
                 try {
-                  MultiDisplayMode currentMode =
-                      await HardwareSimulator.getCurrentMultiDisplayMode();
-                  if (currentMode != MultiDisplayMode.extend) {
-                    await HardwareSimulator.setMultiDisplayMode(
-                        MultiDisplayMode.extend);
-                  }
-                } catch (e, stack) {
-                  VLOG0('get/set multi-display mode failed: $e\n$stack');
-                  return;
-                }
-
-                retryCount++;
-                if (retryCount > 10) {
-                  VLOG0('创建虚拟显示器后 等待超时');
-                  if (virtualDisplayIds.containsKey(settings.screenId)) {
-                    _removeVirtualDisplay(virtualDisplayIds[settings.screenId]!);
-                    virtualDisplayIds.remove(settings.screenId);
-                  }
-                  return;
-                }
-
-                try {
-                  sources =
-                      await desktopCapturer.getSources(types: [SourceType.Screen]);
-                } catch (e, stack) {
-                  VLOG0('desktopCapturer.getSources retry failed: $e\n$stack');
-                  return;
+                  await NodeAgentService.remoteLog(
+                    'INFO',
+                    '[v3.19] 尝试默认抓屏: getDisplayMedia(无 deviceId)',
+                    null,
+                    const Duration(seconds: 1),
+                  );
+                  final getDisplayMediaSw = Stopwatch()..start();
+                  stream = await navigator.mediaDevices
+                      .getDisplayMedia(directConstraints);
+                  getDisplayMediaMs = getDisplayMediaSw.elapsedMilliseconds;
+                  await NodeAgentService.remoteLog(
+                    'INFO',
+                    '[v3.19] 默认抓屏 getDisplayMedia 成功',
+                    null,
+                    const Duration(seconds: 1),
+                  );
+                } catch (e) {
+                  await NodeAgentService.remoteLog(
+                    'WARN',
+                    '[v3.19] 默认抓屏 getDisplayMedia 失败，回退到 getSources',
+                    {'error': e.toString()},
+                    const Duration(seconds: 1),
+                  );
+                  stream = null;
                 }
               }
 
-              // 独占模式，需要重置新显示器为主显示器
-              if (settings.streamMode == VDISPLAY_OCCUPY) {
+              if (stream == null) {
+                late List<DesktopCapturerSource> sources;
                 try {
-                  await Future.delayed(const Duration(milliseconds: 500));
-                  sources =
-                      await desktopCapturer.getSources(types: [SourceType.Screen]);
-                  if (sources.length != 1) {
-                    await HardwareSimulator.setPrimaryDisplayOnly(
-                        virtualDisplayIds[0]!);
-                    retryCount = 0;
-                    while (sources.length != 1) {
-                      retryCount++;
-                      if (retryCount > 10) {
-                        VLOG0('创建虚拟显示器后 设置主屏超时');
-                        HardwareSimulator.restoreDisplayConfiguration();
-                        return;
+                  VLOG0(
+                      '[STREAM_DEBUG] Calling desktopCapturer.getSources(types: [Screen])...');
+                  await NodeAgentService.remoteLog(
+                    'INFO',
+                    '[v3.19] 准备调用 desktopCapturer.getSources',
+                    null,
+                    const Duration(seconds: 1),
+                  );
+                  final getSourcesSw = Stopwatch()..start();
+                  sources = await desktopCapturer
+                      .getSources(types: [SourceType.Screen]);
+                  getSourcesMs = getSourcesSw.elapsedMilliseconds;
+                  sourcesCount = sources.length;
+                  await NodeAgentService.remoteLog(
+                    'INFO',
+                    '[v3.19] getSources 成功',
+                    {'count': sources.length},
+                    const Duration(seconds: 1),
+                  );
+                  VLOG0(
+                      '[STREAM_DEBUG] desktopCapturer.getSources returned ${sources.length} sources');
+                } catch (e, stack) {
+                  await NodeAgentService.remoteLog(
+                    'ERROR',
+                    '[v3.19] getSources 崩溃',
+                    {'error': e.toString()},
+                    const Duration(seconds: 1),
+                  );
+                  VLOG0('desktopCapturer.getSources failed: $e\n$stack');
+                  return;
+                }
+
+                if (!isVirtualDisplayMode) {
+                  // Default mode: do not touch system display config; just validate.
+                  if (sources.isEmpty) {
+                    await NodeAgentService.remoteLog(
+                      'WARN',
+                      '[v3.19] 屏幕源为空',
+                      null,
+                      const Duration(seconds: 1),
+                    );
+                    VLOG0(
+                        'No screen sources found (desktopCapturer.getSources returned empty).');
+                    return;
+                  }
+                  if (settings.screenId! < 0 ||
+                      settings.screenId! >= sources.length) {
+                    await NodeAgentService.remoteLog(
+                      'ERROR',
+                      '[v3.19] targetScreenId 越界',
+                      {
+                        'targetScreenId': settings.screenId,
+                        'count': sources.length,
+                      },
+                      const Duration(seconds: 1),
+                    );
+                    VLOG0(
+                        'Invalid targetScreenId=${settings.screenId} (available screens=${sources.length}).');
+                    return;
+                  }
+                } else {
+                  // Virtual display mode: keep legacy behavior to wait for new display to appear.
+                  int retryCount = 0;
+                  while (sources.length <= settings.screenId!) {
+                    try {
+                      MultiDisplayMode currentMode =
+                          await HardwareSimulator.getCurrentMultiDisplayMode();
+                      if (currentMode != MultiDisplayMode.extend) {
+                        await HardwareSimulator.setMultiDisplayMode(
+                            MultiDisplayMode.extend);
                       }
-                      await Future.delayed(const Duration(milliseconds: 500));
-                      sources = await desktopCapturer.getSources(
-                          types: [SourceType.Screen]);
+                    } catch (e, stack) {
+                      VLOG0('get/set multi-display mode failed: $e\n$stack');
+                      return;
+                    }
+
+                    retryCount++;
+                    if (retryCount > 10) {
+                      VLOG0('创建虚拟显示器后 等待超时');
+                      if (virtualDisplayIds.containsKey(settings.screenId)) {
+                        _removeVirtualDisplay(
+                            virtualDisplayIds[settings.screenId]!);
+                        virtualDisplayIds.remove(settings.screenId);
+                      }
+                      return;
+                    }
+
+                    try {
+                      sources = await desktopCapturer
+                          .getSources(types: [SourceType.Screen]);
+                    } catch (e, stack) {
+                      VLOG0(
+                          'desktopCapturer.getSources retry failed: $e\n$stack');
+                      return;
                     }
                   }
-                  settings.screenId = 0;
-                } catch (e, stack) {
-                  VLOG0('setPrimaryDisplayOnly failed: $e\n$stack');
+
+                  // 独占模式，需要重置新显示器为主显示器
+                  if (settings.streamMode == VDISPLAY_OCCUPY) {
+                    try {
+                      await Future.delayed(const Duration(milliseconds: 500));
+                      sources = await desktopCapturer
+                          .getSources(types: [SourceType.Screen]);
+                      if (sources.length != 1) {
+                        await HardwareSimulator.setPrimaryDisplayOnly(
+                            virtualDisplayIds[0]!);
+                        retryCount = 0;
+                        while (sources.length != 1) {
+                          retryCount++;
+                          if (retryCount > 10) {
+                            VLOG0('创建虚拟显示器后 设置主屏超时');
+                            HardwareSimulator.restoreDisplayConfiguration();
+                            return;
+                          }
+                          await Future.delayed(
+                              const Duration(milliseconds: 500));
+                          sources = await desktopCapturer
+                              .getSources(types: [SourceType.Screen]);
+                        }
+                      }
+                      settings.screenId = 0;
+                    } catch (e, stack) {
+                      VLOG0('setPrimaryDisplayOnly failed: $e\n$stack');
+                      return;
+                    }
+                  }
+
+                  if (sources.isEmpty) {
+                    VLOG0(
+                        'No screen sources found after virtual display setup (sources empty).');
+                    return;
+                  }
+                  if (settings.screenId! < 0 ||
+                      settings.screenId! >= sources.length) {
+                    VLOG0(
+                        'Invalid targetScreenId=${settings.screenId} (available screens=${sources.length}) after virtual display setup.');
+                    return;
+                  }
+                }
+
+                final source = sources[settings.screenId!];
+                final mediaConstraints = <String, dynamic>{
+                  'video': {
+                    'deviceId': {'exact': source.id},
+                    'mandatory': {
+                      'frameRate': settings.framerate,
+                      //Todo(haichao): currently disable this because it will cause crash on some devices.
+                      'hasCursor': false //settings.showRemoteCursor
+                    }
+                  },
+                  'audio': false
+                };
+
+                try {
+                  VLOG0(
+                      '[STREAM_DEBUG] Calling navigator.mediaDevices.getDisplayMedia(...)');
+                  await NodeAgentService.remoteLog(
+                    'INFO',
+                    '[v3.19] 准备调用 getDisplayMedia',
+                    null,
+                    const Duration(seconds: 1),
+                  );
+                  final getDisplayMediaSw = Stopwatch()..start();
+                  stream = await navigator.mediaDevices
+                      .getDisplayMedia(mediaConstraints);
+                  getDisplayMediaMs = getDisplayMediaSw.elapsedMilliseconds;
+                  await NodeAgentService.remoteLog(
+                    'INFO',
+                    '[v3.19] getDisplayMedia 成功',
+                    null,
+                    const Duration(seconds: 1),
+                  );
+                } catch (e) {
+                  await NodeAgentService.remoteLog(
+                    'ERROR',
+                    '[v3.19] getDisplayMedia 失败',
+                    {'error': e.toString()},
+                    const Duration(seconds: 1),
+                  );
+                  //This happens on Web when user choose not to share the content.
+                  VLOG0("getDisplayMedia failed.$e");
                   return;
                 }
-              }
-
-              if (sources.isEmpty) {
-                VLOG0(
-                    'No screen sources found after virtual display setup (sources empty).');
-                return;
-              }
-              if (settings.screenId! < 0 || settings.screenId! >= sources.length) {
-                VLOG0(
-                    'Invalid targetScreenId=${settings.screenId} (available screens=${sources.length}) after virtual display setup.');
-                return;
               }
             }
 
-            final source = sources[settings.screenId!];
-            mediaConstraints = <String, dynamic>{
-              'video': {
-                'deviceId': {'exact': source.id},
-                'mandatory': {
-                  'frameRate': settings.framerate,
-                  //Todo(haichao): currently disable this because it will cause crash on some devices.
-                  'hasCursor': false //settings.showRemoteCursor
-                }
-              },
-              'audio': false
-            };
-          }
-          try {
-            VLOG0('[STREAM_DEBUG] Calling navigator.mediaDevices.getDisplayMedia(...)');
-            await NodeAgentService.remoteLog('INFO', '[v3.19] 准备调用 getDisplayMedia');
-            localVideoStreams[settings.screenId!] =
-                await navigator.mediaDevices.getDisplayMedia(mediaConstraints);
-            await NodeAgentService.remoteLog('INFO', '[v3.19] getDisplayMedia 成功');
+            if (stream == null) {
+              await NodeAgentService.remoteLog(
+                'ERROR',
+                '[v3.19] getDisplayMedia 返回空流',
+                null,
+                const Duration(seconds: 1),
+              );
+              return;
+            }
+            localVideoStreams[settings.screenId!] = stream;
             localVideoStreamsCount[settings.screenId!] = 1;
-          } catch (e) {
-            await NodeAgentService.remoteLog('ERROR', '[v3.19] getDisplayMedia 失败', {'error': e.toString()});
-            //This happens on Web when user choose not to share the content.
-            VLOG0("getDisplayMedia failed.$e");
+          } else {
+            //TODO:串流过程中显示器配置发生改变如何考虑?
+            localVideoStreamsCount[settings.screenId!] =
+                localVideoStreamsCount[settings.screenId!]! + 1;
+          }
+
+          await NodeAgentService.remoteLog(
+            'INFO',
+            '[v3.19] 准备调用 session.acceptRequest (发送 offer)',
+            null,
+            const Duration(seconds: 1),
+          );
+          StreamingSession session =
+              StreamingSession(target, ApplicationInfo.thisDevice);
+          cursorImageHookID++;
+          session.cursorImageHookID = cursorImageHookID;
+          cursorPositionUpdatedHookID++;
+          session.cursorPositionUpdatedHookID = cursorPositionUpdatedHookID;
+          try {
+            session.acceptRequest(settings);
+          } catch (e, stack) {
+            await NodeAgentService.remoteLog(
+              'ERROR',
+              '[v3.19] session.acceptRequest 失败',
+              {'error': e.toString()},
+              const Duration(seconds: 1),
+            );
+            VLOG0('session.acceptRequest failed: $e\n$stack');
             return;
           }
-        } else {
-          //TODO:串流过程中显示器配置发生改变如何考虑?
-          localVideoStreamsCount[settings.screenId!] =
-              localVideoStreamsCount[settings.screenId!]! + 1;
+          await NodeAgentService.remoteLog(
+            'INFO',
+            '[v3.19] acceptRequest 已调用，offer 应已发送',
+            null,
+            const Duration(seconds: 1),
+          );
+          sessions[target.websocketSessionid] = session;
+          sessionCreated = true;
+          setCurrentStreamedState(sessions.length);
+          VLOG0(
+              '[STREAM_PERF] startStreaming mode=${settings.streamMode} screenId=${settings.screenId} vdd=${createVirtualDisplayMs}ms getSources=${getSourcesMs}ms sources=${sourcesCount} getDisplayMedia=${getDisplayMediaMs}ms total=${perfSw.elapsedMilliseconds}ms');
+        } finally {
+          if (!sessionCreated && autoVirtualDisplayId != null) {
+            await NodeAgentService.remoteLog(
+              'INFO',
+              '[v3.19] 自动虚拟显示器清理',
+              {'display_id': autoVirtualDisplayId},
+              const Duration(seconds: 1),
+            );
+            await _removeVirtualDisplay(autoVirtualDisplayId!);
+            virtualDisplayIds.remove(settings.screenId);
+          }
         }
-        await NodeAgentService.remoteLog('INFO', '[v3.19] 准备调用 session.acceptRequest (发送 offer)');
-        StreamingSession session = StreamingSession(target, ApplicationInfo.thisDevice);
-        cursorImageHookID++;
-        session.cursorImageHookID = cursorImageHookID;
-        cursorPositionUpdatedHookID++;
-        session.cursorPositionUpdatedHookID = cursorPositionUpdatedHookID;
-        session.acceptRequest(settings);
-        await NodeAgentService.remoteLog('INFO', '[v3.19] acceptRequest 已调用，offer 应已发送');
-        sessions[target.websocketSessionid] = session;
-        setCurrentStreamedState(sessions.length);
       });
     } catch (e, stack) {
       VLOG0('[STREAM_DEBUG] startStreaming exception: $e\n$stack');
@@ -449,7 +757,7 @@ class StreamedManager {
             });
             localVideoStreams.remove(screenId);
           }
-          
+
           // 如果这个screenId对应的是虚拟显示器，则移除它
           if (virtualDisplayIds.containsKey(screenId)) {
             VLOG0("removing monitor");

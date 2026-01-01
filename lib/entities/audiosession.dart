@@ -29,21 +29,26 @@ class AudioSession {
   Future<RTCPeerConnection> createRTCPeerConnection() async {
     Map<String, dynamic> iceServers;
 
+    final iceServerList = <Map<String, dynamic>>[];
+
     if (StreamingSettings.useTurnServer) {
-      iceServers = {
-        'iceServers': [
-          {
-            'urls': StreamingSettings.customTurnServerAddress,
-            'username': StreamingSettings.customTurnServerUsername,
-            'credential': StreamingSettings.customTurnServerPassword
-          }
-        ]
-      };
-    } else {
-      iceServers = {
-        'iceServers': [cloudPlayPlusStun]
-      };
+      final turnUrl = StreamingSettings.customTurnServerAddress;
+      if (turnUrl != null && turnUrl.isNotEmpty) {
+        final server = <String, dynamic>{'urls': turnUrl};
+        final username = StreamingSettings.customTurnServerUsername;
+        final credential = StreamingSettings.customTurnServerPassword;
+        if (username != null && username.isNotEmpty) {
+          server['username'] = username;
+        }
+        if (credential != null && credential.isNotEmpty) {
+          server['credential'] = credential;
+        }
+        iceServerList.add(server);
+      }
     }
+
+    iceServerList.add(Map<String, dynamic>.from(cloudPlayPlusStun));
+    iceServers = {'iceServers': iceServerList};
 
     final Map<String, dynamic> config = {
       'mandatory': {},
@@ -71,6 +76,9 @@ class AudioSession {
     pc = await createRTCPeerConnection();
 
     pc!.onIceCandidate = (candidate) async {
+      if (candidate.candidate == null || candidate.candidate!.isEmpty) {
+        return;
+      }
       Map<String, dynamic> mapData = {
         'candidate': {
           'sdpMLineIndex': candidate.sdpMLineIndex,
@@ -79,10 +87,7 @@ class AudioSession {
         },
       };
       RTCDataChannelMessage msg = RTCDataChannelMessage(jsonEncode(mapData));
-      await Future.delayed(
-          const Duration(seconds: 1),
-          //controller's candidate
-          () => channel.send(msg));
+      await channel.send(msg);
     };
 
     pc!.onTrack = (event) {
@@ -129,7 +134,8 @@ class AudioSession {
     // 添加 maxplaybackrate 参数来设置采样率
     // https://juejin.cn/post/6844904147624394760
     RegExp exp = RegExp(r"^a=fmtp.*$", multiLine: true);
-    String appendStr = ";stereo=1;maxaveragebitrate=${bitrate*1000};maxplaybackrate=48000";
+    String appendStr =
+        ";stereo=1;maxaveragebitrate=${bitrate * 1000};maxplaybackrate=48000";
     //String appendStr = ";maxplaybackrate=$bitrate";
     sdp = sdp.replaceAllMapped(exp, (match) {
       return match.group(0)! + appendStr;

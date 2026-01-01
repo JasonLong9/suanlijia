@@ -31,7 +31,7 @@ class LeaseStreamingService {
       connective: true,
       screencount: 1,
     );
-    StreamingManager.startStreaming(target);
+    StreamingManager.startStreaming(target, leaseId: lease.leaseId);
     return target;
   }
 }

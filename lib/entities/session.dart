@@ -96,7 +96,7 @@ class StreamingSession {
 
   int cursorImageHookID = 0;
   int cursorPositionUpdatedHookID = 0;
-  
+
   // 标记哪些回调已经注册
   bool _cursorImageHookRegistered = false;
   bool _cursorPositionHookRegistered = false;
@@ -121,7 +121,7 @@ class StreamingSession {
   Function(String mediatype, MediaStream stream)? onAddRemoteStream;
 
   //We are the controller
-  void startRequest() async {
+  void startRequest({String? leaseId}) async {
     if (connectionState != StreamingSessionConnectionState.free &&
         connectionState != StreamingSessionConnectionState.disconnected) {
       VLOG0("starting connection on which is already started. Please debug.");
@@ -167,7 +167,10 @@ class StreamingSession {
         }
       };
 
-      pc!.onIceCandidate = (candidate) async {
+      pc!.onIceCandidate = (candidate) {
+        if (candidate.candidate == null || candidate.candidate!.isEmpty) {
+          return;
+        }
         /*if (streamSettings!.turnServerSettings == 2) {
         if (!candidate.candidate!.contains("srflx")) {
           return;
@@ -186,19 +189,16 @@ class StreamingSession {
         return;
       }*/
         // We are controller so source is ourself
-        await Future.delayed(
-            const Duration(seconds: 1),
-            //controller's candidate
-            () => WebSocketService.send('candidate2', {
-                  'source_connectionid': controller.websocketSessionid,
-                  'target_uid': controlled.uid,
-                  'target_connectionid': controlled.websocketSessionid,
-                  'candidate': {
-                    'sdpMLineIndex': candidate.sdpMLineIndex,
-                    'sdpMid': candidate.sdpMid,
-                    'candidate': candidate.candidate,
-                  },
-                }));
+        WebSocketService.send('candidate2', {
+          'source_connectionid': controller.websocketSessionid,
+          'target_uid': controlled.uid,
+          'target_connectionid': controlled.websocketSessionid,
+          'candidate': {
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+            'sdpMid': candidate.sdpMid,
+            'candidate': candidate.candidate,
+          },
+        });
       };
 
       pc!.onTrack = (event) {
@@ -236,7 +236,8 @@ class StreamingSession {
               if (StreamingSettings.streamAudio!) {
                 StreamingSettings.audioBitrate ??= 32;
                 audioBitrate = StreamingSettings.audioBitrate!;
-                audioSession = AudioSession(channel!, controller, controlled, StreamingSettings.audioBitrate!);
+                audioSession = AudioSession(channel!, controller, controlled,
+                    StreamingSettings.audioBitrate!);
                 await audioSession!.requestAudio();
               }
             }
@@ -248,11 +249,18 @@ class StreamingSession {
         }
       };
       // read the latest settings from user settings.
-      WebSocketService.send('requestRemoteControl', {
-        'target_uid': ApplicationInfo.user.uid,
-        'target_connectionid': controlled.websocketSessionid,
-        'settings': StreamingSettings.toJson(),
-      });
+      if (leaseId != null && leaseId.isNotEmpty) {
+        WebSocketService.send('requestRemoteControlLease', {
+          'lease_id': leaseId,
+          'settings': StreamingSettings.toJson(),
+        });
+      } else {
+        WebSocketService.send('requestRemoteControl', {
+          'target_uid': ApplicationInfo.user.uid,
+          'target_connectionid': controlled.websocketSessionid,
+          'settings': StreamingSettings.toJson(),
+        });
+      }
     });
   }
 
@@ -281,21 +289,28 @@ class StreamingSession {
         ]
       };
     }*/
+    final iceServerList = <Map<String, dynamic>>[];
+
+    // Prefer STUN by default; include TURN when enabled for better WAN success rate.
     if (StreamingSettings.useTurnServer) {
-      iceServers = {
-        'iceServers': [
-          {
-            'urls': StreamingSettings.customTurnServerAddress,
-            'username': StreamingSettings.customTurnServerUsername,
-            'credential': StreamingSettings.customTurnServerPassword
-          }
-        ]
-      };
-    } else {
-      iceServers = {
-        'iceServers': [cloudPlayPlusStun]
-      };
+      final turnUrl = StreamingSettings.customTurnServerAddress;
+      if (turnUrl != null && turnUrl.isNotEmpty) {
+        final server = <String, dynamic>{'urls': turnUrl};
+        final username = StreamingSettings.customTurnServerUsername;
+        final credential = StreamingSettings.customTurnServerPassword;
+        if (username != null && username.isNotEmpty) {
+          server['username'] = username;
+        }
+        if (credential != null && credential.isNotEmpty) {
+          server['credential'] = credential;
+        }
+        iceServerList.add(server);
+      }
     }
+
+    // Always keep at least one STUN server as fallback.
+    iceServerList.add(Map<String, dynamic>.from(cloudPlayPlusStun));
+    iceServers = {'iceServers': iceServerList};
 
     final Map<String, dynamic> config = {
       'mandatory': {},
@@ -327,6 +342,10 @@ class StreamingSession {
   //We are the 'controlled'.
   void acceptRequest(StreamedSettings settings) async {
     await _lock.synchronized(() async {
+      final perfSw = Stopwatch()..start();
+      int createPcMs = 0;
+      int createOfferMs = 0;
+      int setLocalMs = 0;
       // 对于移动平台 需要hookAll,且在channel建立之后hook
       /*if (settings.hookCursorImage == true && AppPlatform.isDeskTop && !(controller.devicetype == 'IOS' || controller.devicetype == 'Android')) {
           HardwareSimulator.addCursorImageUpdated(
@@ -343,26 +362,30 @@ class StreamingSession {
       }
       //TODO:implement addCursorPositionUpdated for MacOS.
       if (settings.syncMousePosition == true && AppPlatform.isWindows) {
-          HardwareSimulator.addCursorPositionUpdated((message, screenId, xPercent, yPercent) {
-            if (message == HardwareSimulator.CURSOR_POSITION_CHANGED && image_hooked) {
-              //print("CURSOR_POSITION_CHANGED: $xPercent, $yPercent");
-              ByteData byteData = ByteData(17);
-              byteData.setUint8(0, LP_MOUSECURSOR_CHANGED);
-              byteData.setInt32(1, message);
-              byteData.setInt32(5, screenId);
-              byteData.setFloat32(9, xPercent, Endian.little);
-              byteData.setFloat32(13, yPercent, Endian.little);
-              Uint8List buffer = byteData.buffer.asUint8List();
-              channel?.send(RTCDataChannelMessage.fromBinary(buffer));
-            }
-          }, cursorPositionUpdatedHookID);
-          _cursorPositionHookRegistered = true;
+        HardwareSimulator.addCursorPositionUpdated(
+            (message, screenId, xPercent, yPercent) {
+          if (message == HardwareSimulator.CURSOR_POSITION_CHANGED &&
+              image_hooked) {
+            //print("CURSOR_POSITION_CHANGED: $xPercent, $yPercent");
+            ByteData byteData = ByteData(17);
+            byteData.setUint8(0, LP_MOUSECURSOR_CHANGED);
+            byteData.setInt32(1, message);
+            byteData.setInt32(5, screenId);
+            byteData.setFloat32(9, xPercent, Endian.little);
+            byteData.setFloat32(13, yPercent, Endian.little);
+            Uint8List buffer = byteData.buffer.asUint8List();
+            channel?.send(RTCDataChannelMessage.fromBinary(buffer));
+          }
+        }, cursorPositionUpdatedHookID);
+        _cursorPositionHookRegistered = true;
       }
       selfSessionType = SelfSessionType.controlled;
       restartPingTimeoutTimer(10);
       streamSettings = settings;
 
+      final createPcSw = Stopwatch()..start();
       pc = await createRTCPeerConnection();
+      createPcMs = createPcSw.elapsedMilliseconds;
 
       screenId = settings.screenId!;
 
@@ -417,20 +440,21 @@ class StreamingSession {
       };
       */
 
-      pc!.onIceCandidate = (candidate) async {
+      pc!.onIceCandidate = (candidate) {
+        if (candidate.candidate == null || candidate.candidate!.isEmpty) {
+          return;
+        }
         // We are controlled so source is ourself
-        await Future.delayed(
-            const Duration(seconds: 1),
-            () => WebSocketService.send('candidate', {
-                  'source_connectionid': controlled.websocketSessionid,
-                  'target_uid': controller.uid,
-                  'target_connectionid': controller.websocketSessionid,
-                  'candidate': {
-                    'sdpMLineIndex': candidate.sdpMLineIndex,
-                    'sdpMid': candidate.sdpMid,
-                    'candidate': candidate.candidate,
-                  },
-                }));
+        WebSocketService.send('candidate', {
+          'source_connectionid': controlled.websocketSessionid,
+          'target_uid': controller.uid,
+          'target_connectionid': controller.websocketSessionid,
+          'candidate': {
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+            'sdpMid': candidate.sdpMid,
+            'candidate': candidate.candidate,
+          },
+        });
       };
 
       pc!.onConnectionState = (state) {
@@ -467,7 +491,9 @@ class StreamingSession {
       channel?.onMessage = (RTCDataChannelMessage msg) {
         if (!image_hooked && !AppPlatform.isWeb) {
           bool hookall = false;
-          if (AppPlatform.isDeskTop && (controller.devicetype == 'IOS' || controller.devicetype == 'Android')) {
+          if (AppPlatform.isDeskTop &&
+              (controller.devicetype == 'IOS' ||
+                  controller.devicetype == 'Android')) {
             hookall = true;
           }
           HardwareSimulator.addCursorImageUpdated(
@@ -477,7 +503,7 @@ class StreamingSession {
         }
         processDataChannelMessageFromClient(msg);
       };
-  
+
       //onDataChannelState 触发很慢 原因未知
       /*channel?.onDataChannelState = (state) async {
         if (state == RTCDataChannelState.RTCDataChannelOpen) {
@@ -509,6 +535,7 @@ class StreamingSession {
       channel.send(RTCDataChannelMessage("xboxinit"));
     }*/
 
+      final createOfferSw = Stopwatch()..start();
       RTCSessionDescription sdp = await pc!.createOffer({
         'mandatory': {
           'OfferToReceiveAudio': false,
@@ -516,6 +543,7 @@ class StreamingSession {
         },
         'optional': [],
       });
+      createOfferMs = createOfferSw.elapsedMilliseconds;
 
       if (selfSessionType == SelfSessionType.controlled) {
         if (settings.codec == null || settings.codec == "default") {
@@ -532,7 +560,9 @@ class StreamingSession {
         }
       }
 
+      final setLocalSw = Stopwatch()..start();
       await pc!.setLocalDescription(_fixSdp(sdp, settings.bitrate!));
+      setLocalMs = setLocalSw.elapsedMilliseconds;
 
       while (candidates.isNotEmpty) {
         await pc!.addCandidate(candidates[0]);
@@ -548,6 +578,8 @@ class StreamingSession {
       });
 
       connectionState = StreamingSessionConnectionState.offerSent;
+      VLOG0(
+          '[STREAM_PERF] acceptRequest pc=${createPcMs}ms offer=${createOfferMs}ms setLocal=${setLocalMs}ms total=${perfSw.elapsedMilliseconds}ms');
     });
   }
 
@@ -701,23 +733,28 @@ class StreamingSession {
           StreamingSessionConnectionState.disconnected;
       connectionState = StreamingSessionConnectionState.disconnected;
       //controlled.connectionState.value = StreamingSessionConnectionState.free;
-      if (_cursorImageHookRegistered && selfSessionType == SelfSessionType.controlled) {
+      if (_cursorImageHookRegistered &&
+          selfSessionType == SelfSessionType.controlled) {
         if (AppPlatform.isDeskTop) {
           HardwareSimulator.removeCursorImageUpdated(cursorImageHookID);
           _cursorImageHookRegistered = false;
         }
       }
-      if (_cursorPositionHookRegistered && selfSessionType == SelfSessionType.controlled) {
+      if (_cursorPositionHookRegistered &&
+          selfSessionType == SelfSessionType.controlled) {
         //TODO:implement for MacOS
         if (AppPlatform.isWindows) {
-            HardwareSimulator.removeCursorPositionUpdated(cursorPositionUpdatedHookID);
-            _cursorPositionHookRegistered = false;
+          HardwareSimulator.removeCursorPositionUpdated(
+              cursorPositionUpdatedHookID);
+          _cursorPositionHookRegistered = false;
         }
       }
-      if (selfSessionType == SelfSessionType.controlled && (AppPlatform.isWindows)) {
+      if (selfSessionType == SelfSessionType.controlled &&
+          (AppPlatform.isWindows)) {
         await HardwareSimulator.clearAllPressedEvents();
       }
-      if (selfSessionType == SelfSessionType.controller && (AppPlatform.isMobile || AppPlatform.isAndroidTV)) {
+      if (selfSessionType == SelfSessionType.controller &&
+          (AppPlatform.isMobile || AppPlatform.isAndroidTV)) {
         InputController.mouseController.setHasMoved(false);
       }
       if (WebrtcService.currentRenderingSession == this) {
@@ -834,7 +871,8 @@ class StreamingSession {
         case LP_EMPTY:
           break;
         case LP_AUDIO_CONNECT:
-          audioSession = AudioSession(channel!, controller, controlled, audioBitrate);
+          audioSession =
+              AudioSession(channel!, controller, controlled, audioBitrate);
           audioSession?.audioRequested();
           break;
         default:
@@ -972,7 +1010,8 @@ class _AppLifecycleObserver extends WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
       onResume?.call();
-      if (AppPlatform.isAndroid && WebrtcService.currentRenderingSession != null) {
+      if (AppPlatform.isAndroid &&
+          WebrtcService.currentRenderingSession != null) {
         HardwareSimulator.unlockCursor().then((state) async {
           HardwareSimulator.lockCursor();
         });

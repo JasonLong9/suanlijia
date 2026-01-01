@@ -201,6 +201,23 @@ class ControlPlaneClientReal implements ControlPlaneClient {
   }
 
   @override
+  Future<List<Lease>> fetchLeases() async {
+    final baseUrl = LoginService.baseUrl;
+    final uri = Uri.parse('$baseUrl/api/lease/list/');
+
+    final response = await http.get(uri, headers: await _getHeaders());
+    final body = _decodeJson(response);
+    if (response.statusCode != 200) {
+      throw _asApiException(body, fallbackCode: 'HTTP_${response.statusCode}');
+    }
+
+    final leases = (body['leases'] as List<dynamic>? ?? const [])
+        .map((e) => Lease.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return leases;
+  }
+
+  @override
   Future<BillingInfo> fetchBillingInfo() async {
     final baseUrl = LoginService.baseUrl;
     final uri = Uri.parse('$baseUrl/api/billing/info/');

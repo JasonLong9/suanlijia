@@ -1,5 +1,7 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:slc/controller/screen_controller.dart';
+import 'package:slc/pages/control_plane/billing_page.dart';
+import 'package:slc/pages/control_plane/leases_page.dart';
 import 'package:slc/services/app_info_service.dart';
 import 'package:slc/services/streamed_manager.dart';
 import 'package:slc/services/websocket_service.dart';
@@ -8,7 +10,10 @@ import 'package:slc/utils/system_tray_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import '../settings_screen.dart';
+import '../service_locator.dart';
+import '../control_plane/control_plane_controller.dart';
 import 'devices_page.dart';
+import 'control_plane/pool_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -25,21 +30,53 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WebSocketService.init();
+    getIt<ControlPlaneController>().start();
+
+    if (AppPlatform.isAndroidTV) {
+      _children = const [
+        PoolPage(),
+      ];
+      _navItems = const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.computer),
+          label: '云电脑',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings),
+          label: '设置',
+        ),
+      ];
+      return;
+    }
+
     _children = [
       DevicesPage(),
-      //Grouped(),
-      //const Text("test"), //Grouped(),
-      /*Scaffold(
-        appBar: AppBar(title: const Text('我的好友')),
-        body: const Center(
-          child: Text(
-            '暂未开放 敬请期待',
-            style: TextStyle(fontSize: 20),
-          ),
-        ),
-      ),*/
-      if (!AppPlatform.isAndroidTV)
-        const SettingsScreen(), //GamesPage(),
+      const PoolPage(),
+      const LeasesPage(),
+      const BillingPage(),
+      const SettingsScreen(),
+    ];
+    _navItems = const [
+      BottomNavigationBarItem(
+        icon: Icon(Icons.computer),
+        label: '设备',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.cloud),
+        label: '资源池',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.assignment),
+        label: '我的租赁',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.receipt_long),
+        label: '账单',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.settings),
+        label: '设置',
+      ),
     ];
   }
 
@@ -71,6 +108,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   late final List<Widget> _children;
+  late final List<BottomNavigationBarItem> _navItems;
 
   @override
   Widget build(BuildContext context) {
@@ -221,16 +259,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       type: BottomNavigationBarType.fixed,
                       onTap: onTabTapped,
                       currentIndex: _currentIndex,
-                      items: const[
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.computer),
-                          label: '设备',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.settings),
-                          label: '设置',
-                        ),
-                      ],
+                      items: _navItems,
                     );
                   },
                 ),

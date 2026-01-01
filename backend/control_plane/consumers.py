@@ -125,6 +125,17 @@ class ControlPlaneConsumer(AsyncWebsocketConsumer):
         meta = getattr(self, "meta", None)
         if meta is None:
             return
+        import sys
+        try:
+            cid = meta.connection_id or ""
+            cid_short = f"{cid[:20]}..." if len(cid) > 20 else cid
+        except Exception:
+            cid_short = ""
+        print(
+            f"[WS] disconnect role={meta.role} user_id={meta.user_id} device_id={meta.device_id} connection_id={cid_short} code={code}",
+            file=sys.stderr,
+            flush=True,
+        )
 
         _connections.pop(meta.connection_id, None)
 

@@ -62,6 +62,15 @@ class ControlPlaneController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<Lease>> refreshLeases() async {
+    final leases = await _client.fetchLeases();
+    leasesById
+      ..clear()
+      ..addEntries(leases.map((lease) => MapEntry(lease.leaseId, lease)));
+    notifyListeners();
+    return leases;
+  }
+
   Future<RentResult> rent({
     required String region,
     required String gpuTier,

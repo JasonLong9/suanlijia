@@ -87,7 +87,10 @@ void main(List<String> args) async {
   await ScreenController.initialize();
   await SharedPreferencesManager.init();
   // flutter_secure_storage(Web) 依赖 WebCrypto（需要 HTTPS / localhost 的安全上下文）。
-  // 当前我们的 Web 部署是 http://<ip>:8080，因此 Web 端不要初始化 secure storage，避免运行时崩溃。
+  // 当前我们的 Web 部署是 http://<ip>:8080，因此 Web 端强制改用 SharedPreferences 存 token，避免崩溃/丢 token。
+  if (AppPlatform.isWeb) {
+    DevelopSettings.useSecureStorage = false;
+  }
   if (DevelopSettings.useSecureStorage && !AppPlatform.isWeb) {
     SecureStorageManager.init();
   }
@@ -149,16 +152,6 @@ void main(List<String> args) async {
 }
 
 void _writeStartupLog(String msg) {
-  try {
-    final logDir = Directory(r'C:\ProgramData\SLC\logs');
-    if (!logDir.existsSync()) logDir.createSync(recursive: true);
-    final logFile = File('${logDir.path}\\startup.log');
-    logFile.writeAsStringSync(
-      '[${DateTime.now().toIso8601String()}] $msg\n',
-      mode: FileMode.append,
-      flush: true,
-    );
-  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {

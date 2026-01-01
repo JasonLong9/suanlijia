@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../control_plane/control_plane_controller.dart';
 import '../../control_plane/control_plane_models.dart';
 import '../../service_locator.dart';
@@ -42,7 +43,7 @@ class _PoolPageState extends State<PoolPage> {
   Future<void> _rent() async {
     if (_selectedRegion == null || _selectedGpuTier == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先选择地域和规�?)),
+        const SnackBar(content: Text('请先选择地域和规格')),
       );
       return;
     }
@@ -57,9 +58,8 @@ class _PoolPageState extends State<PoolPage> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('租赁成功！请前往“我的租赁”查�?)),
+          const SnackBar(content: Text('租赁成功！请前往“我的租赁”查看')),
         );
-        // Refresh pool to show updated availability
         _refreshPool();
       }
     } catch (e) {
@@ -77,10 +77,11 @@ class _PoolPageState extends State<PoolPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('资源�?),
+        title: const Text('资源池'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: '刷新',
             onPressed: _refreshPool,
           ),
         ],
@@ -94,12 +95,11 @@ class _PoolPageState extends State<PoolPage> {
                 if (_isLoading && controller.poolNodes.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (controller.poolNodes.isEmpty) {
                   return const Center(child: Text('暂无可用资源'));
                 }
 
-                // Group nodes by region and tier for display
                 final groupedNodes = <String, List<PoolNode>>{};
                 for (final node in controller.poolNodes) {
                   final key = '${node.region} - ${node.gpuTier}';
@@ -112,21 +112,24 @@ class _PoolPageState extends State<PoolPage> {
                     final key = groupedNodes.keys.elementAt(index);
                     final nodes = groupedNodes[key]!;
                     final firstNode = nodes.first;
-                    final freeCount = nodes.where((n) => n.status == NodeStatus.free).length;
+                    final freeCount =
+                        nodes.where((n) => n.status == NodeStatus.free).length;
 
                     return Card(
                       margin: const EdgeInsets.all(8.0),
                       child: ListTile(
                         title: Text(key),
-                        subtitle: Text('可用: $freeCount �?),
+                        subtitle: Text('可用: $freeCount 台'),
                         trailing: ElevatedButton(
-                          onPressed: freeCount > 0 ? () {
-                            setState(() {
-                              _selectedRegion = firstNode.region;
-                              _selectedGpuTier = firstNode.gpuTier;
-                            });
-                            _showRentDialog(context, freeCount);
-                          } : null,
+                          onPressed: freeCount > 0
+                              ? () {
+                                  setState(() {
+                                    _selectedRegion = firstNode.region;
+                                    _selectedGpuTier = firstNode.gpuTier;
+                                  });
+                                  _showRentDialog(context, freeCount);
+                                }
+                              : null,
                           child: const Text('租用'),
                         ),
                       ),
@@ -151,9 +154,10 @@ class _PoolPageState extends State<PoolPage> {
               value: _selectedRegion,
               decoration: const InputDecoration(labelText: '地域'),
               items: const [
-                DropdownMenuItem(value: null, child: Text('全部')),
-                DropdownMenuItem(value: 'cn-shanghai', child: Text('上海')),
-                DropdownMenuItem(value: 'cn-beijing', child: Text('北京')),
+                DropdownMenuItem<String>(value: null, child: Text('全部')),
+                DropdownMenuItem<String>(
+                    value: 'cn-shanghai', child: Text('上海')),
+                DropdownMenuItem<String>(value: 'cn-beijing', child: Text('北京')),
               ],
               onChanged: (value) {
                 setState(() => _selectedRegion = value);
@@ -167,11 +171,11 @@ class _PoolPageState extends State<PoolPage> {
               value: _selectedGpuTier,
               decoration: const InputDecoration(labelText: '规格'),
               items: const [
-                DropdownMenuItem(value: null, child: Text('全部')),
-                DropdownMenuItem(value: 'tier_1', child: Text('Tier 1')),
-                DropdownMenuItem(value: 'tier_3', child: Text('Tier 3')),
-                DropdownMenuItem(value: 'tier_5', child: Text('Tier 5')),
-                DropdownMenuItem(value: 'tier_7', child: Text('Tier 7')),
+                DropdownMenuItem<String>(value: null, child: Text('全部')),
+                DropdownMenuItem<String>(value: 'tier_1', child: Text('Tier 1')),
+                DropdownMenuItem<String>(value: 'tier_3', child: Text('Tier 3')),
+                DropdownMenuItem<String>(value: 'tier_5', child: Text('Tier 5')),
+                DropdownMenuItem<String>(value: 'tier_7', child: Text('Tier 7')),
               ],
               onChanged: (value) {
                 setState(() => _selectedGpuTier = value);
@@ -196,12 +200,9 @@ class _PoolPageState extends State<PoolPage> {
               DropdownButtonFormField<BillingUnit>(
                 value: _selectedBillingUnit,
                 decoration: const InputDecoration(labelText: '计费单位'),
-                items: BillingUnit.values.map((e) {
-                  return DropdownMenuItem(
-                    value: e,
-                    child: Text(e.name),
-                  );
-                }).toList(),
+                items: BillingUnit.values
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                    .toList(),
                 onChanged: (value) {
                   if (value != null) setState(() => _selectedBillingUnit = value);
                 },
@@ -212,12 +213,15 @@ class _PoolPageState extends State<PoolPage> {
                   const Text('数量: '),
                   IconButton(
                     icon: const Icon(Icons.remove),
-                    onPressed: _rentCount > 1 ? () => setState(() => _rentCount--) : null,
+                    onPressed:
+                        _rentCount > 1 ? () => setState(() => _rentCount--) : null,
                   ),
                   Text('$_rentCount'),
                   IconButton(
                     icon: const Icon(Icons.add),
-                    onPressed: _rentCount < maxCount ? () => setState(() => _rentCount++) : null,
+                    onPressed: _rentCount < maxCount
+                        ? () => setState(() => _rentCount++)
+                        : null,
                   ),
                 ],
               ),

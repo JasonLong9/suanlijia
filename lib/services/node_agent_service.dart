@@ -47,8 +47,12 @@ class NodeAgentService {
   String? get activeLeaseId => _activeLeaseId;
 
   /// 发送远程日志到服务器（用于崩溃前诊断）
-  static Future<void> remoteLog(String level, String message,
-      [Map<String, dynamic>? context]) async {
+  static Future<void> remoteLog(
+    String level,
+    String message, [
+    Map<String, dynamic>? context,
+    Duration timeout = const Duration(seconds: 2),
+  ]) async {
     try {
       String baseUrl = LoginService.baseUrl;
       if (NodeAgentConfig.enabled && NodeAgentConfig.apiUrl.isNotEmpty) {
@@ -71,7 +75,7 @@ class NodeAgentService {
               'context': context,
             }),
           )
-          .timeout(const Duration(seconds: 2));
+          .timeout(timeout);
     } catch (_) {
       // 忽略日志发送失败
     }
@@ -378,12 +382,13 @@ class NodeAgentService {
                   StreamedSettings.fromJson(settings));
               unawaited(remoteLog(
                   'INFO', '[NodeAgentService] startStreaming returned'));
-            } catch (e) {
+            } catch (e, stack) {
               unawaited(remoteLog(
                   'ERROR', '[NodeAgentService] startStreaming threw', {
                 'error': e.toString(),
+                'stack': stack.toString(),
               }));
-              rethrow;
+              return;
             }
           } else {
             VLOG0(

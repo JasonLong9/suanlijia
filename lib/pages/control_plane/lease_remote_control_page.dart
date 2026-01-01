@@ -10,6 +10,9 @@ import '../../services/streaming_manager.dart';
 import '../../services/webrtc_service.dart';
 import '../../service_locator.dart';
 import '../../utils/widgets/global_remote_screen_renderer.dart';
+import '../../widgets/video_info_widget.dart';
+
+import 'leases_page.dart';
 
 class LeaseRemoteControlPage extends StatefulWidget {
   final Lease lease;
@@ -36,7 +39,7 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
     ScreenController.setOnlyShowRemoteScreen(false);
     final device = _device;
     if (device != null) {
-      getIt<StreamingManager>().stopStreaming(device);
+      StreamingManager.stopStreaming(device);
     }
     super.dispose();
   }
@@ -47,7 +50,7 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
       leaseToken: widget.lease.leaseToken ?? '',
     );
     if (device == null) {
-      setState(() => _error = '缺少 lease_token，无法进入远�?);
+      setState(() => _error = '缺少 lease_token，无法进入远控');
       return;
     }
 
@@ -57,8 +60,7 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
 
   Future<void> _release() async {
     try {
-      await getIt<ControlPlaneController>()
-          .release(leaseIds: [widget.lease.leaseId]);
+      await getIt<ControlPlaneController>().release(leaseIds: [widget.lease.leaseId]);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已释放：已停止计费并触发节点重启')),
@@ -105,11 +107,11 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 12),
-                  Text('状�? ${state.name}'),
+                  Text('状态: ${state.name}'),
                   const SizedBox(height: 24),
                   OutlinedButton(
                     onPressed: () {
-                      getIt<StreamingManager>().stopStreaming(device);
+                      StreamingManager.stopStreaming(device);
                       Navigator.pop(context);
                     },
                     child: const Text('取消连接'),
@@ -133,17 +135,32 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: () {
-                        getIt<StreamingManager>().stopStreaming(device);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('已断开连接（租赁仍在计费，需“释放资源”才停止计费�?),
-                          ),
-                        );
-                      },
-                      child: const Text('断开连接'),
+                    const Expanded(
+                      child: Center(
+                        child: IgnorePointer(
+                          ignoring: true,
+                          child: CompactVideoInfoWidget(),
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                        onPressed: () {
+                          StreamingManager.stopStreaming(device);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '已断开连接（租赁仍在计费，需要“释放资源”才停止计费）',
+                              ),
+                            ),
+                          );
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const LeasesPage()),
+                          );
+                        },
+                        child: const Text('断开连接'),
+                      ),
                     const SizedBox(width: 8),
                     FilledButton(
                       onPressed: () async {
@@ -151,8 +168,7 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: const Text('确认释放'),
-                            content:
-                                const Text('释放后将立即停止计费，并通知节点重启。确定要释放吗？'),
+                            content: const Text('释放后将立即停止计费，并通知节点重启。确定要释放吗？'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx, false),
@@ -166,7 +182,7 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
                           ),
                         );
                         if (ok == true) {
-                          getIt<StreamingManager>().stopStreaming(device);
+                          StreamingManager.stopStreaming(device);
                           await _release();
                         }
                       },
@@ -182,4 +198,3 @@ class _LeaseRemoteControlPageState extends State<LeaseRemoteControlPage> {
     );
   }
 }
-

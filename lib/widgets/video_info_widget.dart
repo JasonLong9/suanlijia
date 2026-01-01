@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../services/webrtc_service.dart';
@@ -13,9 +14,10 @@ class VideoInfoWidget extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: ScreenController.showVideoInfo,
       builder: (context, showVideoInfo, _) {
+        final effectiveShow = kIsWeb || showVideoInfo;
         return Visibility(
-          visible: showVideoInfo,
-          child: showVideoInfo
+          visible: effectiveShow,
+          child: effectiveShow
               ? const _VideoInfoContent()
               : const SizedBox.shrink(),
         );
@@ -40,6 +42,9 @@ class _VideoInfoContentState extends State<_VideoInfoContent> {
   Timer? _refreshTimer;
   Map<String, dynamic> _videoInfo = {};
   Map<String, dynamic> _previousVideoInfo = {};
+  int? _lastBytesReceived;
+  DateTime? _lastBytesReceivedAt;
+  double _rxKbps = 0.0;
 
   @override
   void initState() {
@@ -63,19 +68,53 @@ class _VideoInfoContentState extends State<_VideoInfoContent> {
         try {
           final stats = await session!.pc!.getStats();
           final newVideoInfo = _extractVideoInfo(stats);
-          if (newVideoInfo.toString() != _videoInfo.toString()) {
+          final now = DateTime.now();
+          final enriched = _enrichVideoInfoWithBitrate(newVideoInfo, now);
+          if (enriched.toString() != _videoInfo.toString()) {
             setState(() {
               _previousVideoInfo = Map<String, dynamic>.from(_videoInfo);
-              _videoInfo = newVideoInfo;
+              _videoInfo = enriched;
             });
           }
         } catch (e) {
-          VLOG0("failed to get video stats");
+          VLOG0("failed to get video stats: $e");
         }
       } else {
         if (_videoInfo.isNotEmpty) setState(() => _videoInfo = {});
       }
     });
+  }
+
+  Map<String, dynamic> _enrichVideoInfoWithBitrate(
+    Map<String, dynamic> videoInfo,
+    DateTime now,
+  ) {
+    final enriched = Map<String, dynamic>.from(videoInfo);
+    final hasVideo = enriched['hasVideo'] == true;
+    final bytes = enriched['bytesReceived'] as num?;
+    if (!hasVideo || bytes == null) {
+      enriched['rxKbps'] = 0.0;
+      _lastBytesReceived = null;
+      _lastBytesReceivedAt = null;
+      _rxKbps = 0.0;
+      return enriched;
+    }
+
+    final currentBytes = bytes.toInt();
+    final lastBytes = _lastBytesReceived;
+    final lastAt = _lastBytesReceivedAt;
+    if (lastBytes != null && lastAt != null) {
+      final deltaBytes = currentBytes - lastBytes;
+      final deltaMs = now.difference(lastAt).inMilliseconds;
+      if (deltaBytes >= 0 && deltaMs > 0) {
+        final bps = deltaBytes * 8 * 1000 / deltaMs;
+        _rxKbps = bps / 1000;
+      }
+    }
+    _lastBytesReceived = currentBytes;
+    _lastBytesReceivedAt = now;
+    enriched['rxKbps'] = _rxKbps;
+    return enriched;
   }
 
   @override
@@ -105,6 +144,7 @@ class _VideoInfoContentState extends State<_VideoInfoContent> {
             children: [
               _buildInfoItem('分辨率', '${_videoInfo['width']}×${_videoInfo['height']}'),
               _buildInfoItem('帧率', '${(_videoInfo['fps'] as num).toStringAsFixed(1)} fps'),
+              _buildInfoItem('码率', _formatKbps(_videoInfo['rxKbps'] as num?)),
               _buildInfoItem('解码器', _getDecoderDisplayName(_videoInfo['decoderImplementation'], _videoInfo)),
               _buildInfoItem('丢包率', '${_calculatePacketLossRate(_videoInfo).toStringAsFixed(1)}%'),
               _buildInfoItem('往返时延', '${((_videoInfo['roundTripTime'] as num) * 1000).toStringAsFixed(0)} ms'),
@@ -162,6 +202,13 @@ class _VideoInfoContentState extends State<_VideoInfoContent> {
         ],
       );
 
+  String _formatKbps(num? kbps) {
+    final value = (kbps ?? 0).toDouble();
+    if (value <= 0) return '0 kbps';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)} Mbps';
+    return '${value.toStringAsFixed(0)} kbps';
+  }
+
   double _calculatePacketLossRate(Map<String, dynamic> videoInfo) {
     final currentPacketsLost = videoInfo['packetsLost'] as num;
     final currentPacketsReceived = videoInfo['packetsReceived'] as num;
@@ -203,9 +250,10 @@ class CompactVideoInfoWidget extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: ScreenController.showVideoInfo,
       builder: (context, showVideoInfo, _) {
+        final effectiveShow = kIsWeb || showVideoInfo;
         return Visibility(
-          visible: showVideoInfo,
-          child: showVideoInfo
+          visible: effectiveShow,
+          child: effectiveShow
               ? const _CompactVideoInfoContent()
               : const SizedBox.shrink(),
         );
@@ -225,6 +273,9 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
   Timer? _refreshTimer;
   Map<String, dynamic> _videoInfo = {};
   Map<String, dynamic> _previousVideoInfo = {};
+  int? _lastBytesReceived;
+  DateTime? _lastBytesReceivedAt;
+  double _rxKbps = 0.0;
 
   @override
   void initState() {
@@ -246,10 +297,12 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
         try {
           final stats = await session!.pc!.getStats();
           final newVideoInfo = _extractVideoInfo(stats);
-          if (newVideoInfo.toString() != _videoInfo.toString()) {
+          final now = DateTime.now();
+          final enriched = _enrichVideoInfoWithBitrate(newVideoInfo, now);
+          if (enriched.toString() != _videoInfo.toString()) {
             setState(() {
               _previousVideoInfo = Map<String, dynamic>.from(_videoInfo);
-              _videoInfo = newVideoInfo;
+              _videoInfo = enriched;
             });
           }
         } catch (_) {}
@@ -257,6 +310,38 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
         if (_videoInfo.isNotEmpty) setState(() => _videoInfo = {});
       }
     });
+  }
+
+  Map<String, dynamic> _enrichVideoInfoWithBitrate(
+    Map<String, dynamic> videoInfo,
+    DateTime now,
+  ) {
+    final enriched = Map<String, dynamic>.from(videoInfo);
+    final hasVideo = enriched['hasVideo'] == true;
+    final bytes = enriched['bytesReceived'] as num?;
+    if (!hasVideo || bytes == null) {
+      enriched['rxKbps'] = 0.0;
+      _lastBytesReceived = null;
+      _lastBytesReceivedAt = null;
+      _rxKbps = 0.0;
+      return enriched;
+    }
+
+    final currentBytes = bytes.toInt();
+    final lastBytes = _lastBytesReceived;
+    final lastAt = _lastBytesReceivedAt;
+    if (lastBytes != null && lastAt != null) {
+      final deltaBytes = currentBytes - lastBytes;
+      final deltaMs = now.difference(lastAt).inMilliseconds;
+      if (deltaBytes >= 0 && deltaMs > 0) {
+        final bps = deltaBytes * 8 * 1000 / deltaMs;
+        _rxKbps = bps / 1000;
+      }
+    }
+    _lastBytesReceived = currentBytes;
+    _lastBytesReceivedAt = now;
+    enriched['rxKbps'] = _rxKbps;
+    return enriched;
   }
 
   @override
@@ -269,7 +354,10 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text('获取视频信息中...',
-            style: TextStyle(color: Colors.white70, fontSize: 10)),
+            style: TextStyle(color: Colors.white70, fontSize: 10),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false),
       );
     }
     if (!_videoInfo['hasVideo']) {
@@ -280,13 +368,17 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text('未检测到视频流',
-            style: TextStyle(color: Colors.white70, fontSize: 10)),
+            style: TextStyle(color: Colors.white70, fontSize: 10),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false),
       );
     }
 
     final packetLossRate = _calculatePacketLossRate(_videoInfo);
     final rtt = ((_videoInfo['roundTripTime'] as num) * 1000).toStringAsFixed(0);
     final fps = (_videoInfo['fps'] as num).toStringAsFixed(1);
+    final bitrate = _formatKbps(_videoInfo['rxKbps'] as num?);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -295,10 +387,21 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        '${_videoInfo['width']}×${_videoInfo['height']} | ${fps}fps | 丢包${packetLossRate.toStringAsFixed(1)}% | RTT${rtt}ms',
-        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
+        '${_videoInfo['width']}×${_videoInfo['height']} | ${fps}fps | $bitrate | 丢包${packetLossRate.toStringAsFixed(1)}% | RTT${rtt}ms',
+        style: TextStyle(
+            color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
       ),
     );
+  }
+
+  String _formatKbps(num? kbps) {
+    final value = (kbps ?? 0).toDouble();
+    if (value <= 0) return '0 kbps';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)} Mbps';
+    return '${value.toStringAsFixed(0)} kbps';
   }
 
   double _calculatePacketLossRate(Map<String, dynamic> videoInfo) {

@@ -6,9 +6,9 @@ import 'package:slc/services/shared_preferences_manager.dart';
 // 触控模式枚举：用于Windows设备的触控输入
 // 顺序：触摸(默认) -> 触控板 -> 鼠标
 enum TouchInputMode {
-  touch,      // 0: 触摸模式 - 模拟触摸事件（默认）
-  touchpad,   // 1: 触控板模式 - 相对移动
-  mouse,      // 2: 鼠标模式 - 绝对定位
+  touch, // 0: 触摸模式 - 模拟触摸事件（默认）
+  touchpad, // 1: 触控板模式 - 相对移动
+  mouse, // 2: 鼠标模式 - 绝对定位
 }
 
 var officialStun1 = {
@@ -27,6 +27,22 @@ var cloudPlayPlusStun = {
 };
 
 class StreamingSettings {
+  // Build-time overrides (useful for Web where UI settings may be limited).
+  // Example:
+  //   flutter build web --release \
+  //     --dart-define=CPP_FORCE_TURN=true \
+  //     --dart-define=CPP_TURN_URL=turn:xxx:3478 \
+  //     --dart-define=CPP_TURN_USERNAME=xxx \
+  //     --dart-define=CPP_TURN_PASSWORD=xxx
+  static const bool forceTurnServer =
+      bool.fromEnvironment('CPP_FORCE_TURN', defaultValue: false);
+  static const String turnUrlOverride =
+      String.fromEnvironment('CPP_TURN_URL', defaultValue: '');
+  static const String turnUsernameOverride =
+      String.fromEnvironment('CPP_TURN_USERNAME', defaultValue: '');
+  static const String turnPasswordOverride =
+      String.fromEnvironment('CPP_TURN_PASSWORD', defaultValue: '');
+
   static int? framerate;
   static int? bitrate;
   static int? audioBitrate;
@@ -65,8 +81,8 @@ class StreamingSettings {
   static double touchpadSensitivityLocked = 10.0;
 
   // 触控板手势开关
-  static bool touchpadTwoFingerScroll = true;  // 双指滚动
-  static bool touchpadTwoFingerZoom = true;    // 双指缩放
+  static bool touchpadTwoFingerScroll = true; // 双指滚动
+  static bool touchpadTwoFingerZoom = true; // 双指缩放
 
   // 指针缩放倍率
   static double cursorScale = 50.0;
@@ -95,13 +111,14 @@ class StreamingSettings {
 
   static void init() {
     InputController.resendCount =
-        SharedPreferencesManager.getInt('ControlMsgResendCount') ?? (AppPlatform.isAndroidTV? 0:3);
+        SharedPreferencesManager.getInt('ControlMsgResendCount') ??
+            (AppPlatform.isAndroidTV ? 0 : 3);
     framerate =
         SharedPreferencesManager.getInt('framerate') ?? 60; // Default to 60
     bitrate =
         SharedPreferencesManager.getInt('bitrate') ?? 80000; // Default to 80000
-    audioBitrate =
-        SharedPreferencesManager.getInt('audioBitRate') ?? 32; // Default to 128 kbps
+    audioBitrate = SharedPreferencesManager.getInt('audioBitRate') ??
+        32; // Default to 128 kbps
     showRemoteCursor = SharedPreferencesManager.getBool('renderRemoteCursor') ??
         false; // Default to false
     streamAudio = SharedPreferencesManager.getBool('haveAudio') ??
@@ -123,7 +140,8 @@ class StreamingSettings {
     turnServerPassword =
         SharedPreferencesManager.getString('turnServerPassword') ??
             ''; // Default to empty string*/
-    useTurnServer = SharedPreferencesManager.getBool('useTurnServer') ?? false;
+    useTurnServer = forceTurnServer ||
+        (SharedPreferencesManager.getBool('useTurnServer') ?? false);
     customTurnServerAddress =
         SharedPreferencesManager.getString('customTurnServerAddress') ??
             'turn:47.100.84.139:3478';
@@ -134,9 +152,20 @@ class StreamingSettings {
         SharedPreferencesManager.getString('customTurnServerPassword') ??
             'zhuhaichao';
 
+    if (turnUrlOverride.isNotEmpty) {
+      customTurnServerAddress = turnUrlOverride;
+    }
+    if (turnUsernameOverride.isNotEmpty) {
+      customTurnServerUsername = turnUsernameOverride;
+    }
+    if (turnPasswordOverride.isNotEmpty) {
+      customTurnServerPassword = turnPasswordOverride;
+    }
+
     codec = SharedPreferencesManager.getString('codec') ?? 'default';
 
-    hookCursorImage ??= (AppPlatform.isWeb || AppPlatform.isDeskTop || AppPlatform.isMobile);
+    hookCursorImage ??=
+        (AppPlatform.isWeb || AppPlatform.isDeskTop || AppPlatform.isMobile);
 
     connectPasswordHash =
         SharedPreferencesManager.getString('connectPasswordHash') ?? "";
@@ -146,21 +175,29 @@ class StreamingSettings {
 
     autoHideLocalCursor =
         SharedPreferencesManager.getBool('autoHideLocalCursor') ??
-            (AppPlatform.isDeskTop || AppPlatform.isWeb || AppPlatform.isMobile);
+            (AppPlatform.isDeskTop ||
+                AppPlatform.isWeb ||
+                AppPlatform.isMobile);
 
     switchCmdCtrl = SharedPreferencesManager.getBool('switchCmdCtrl') ??
         AppPlatform.isMacos;
 
-    touchInputMode = SharedPreferencesManager.getInt('touchInputMode') ?? TouchInputMode.touch.index;
+    touchInputMode = SharedPreferencesManager.getInt('touchInputMode') ??
+        TouchInputMode.touch.index;
 
-    cursorScale = SharedPreferencesManager.getDouble('cursorScale') ?? (AppPlatform.isAndroidTV? 100.0:50.0);
+    cursorScale = SharedPreferencesManager.getDouble('cursorScale') ??
+        (AppPlatform.isAndroidTV ? 100.0 : 50.0);
 
-    touchpadSensitivity = SharedPreferencesManager.getDouble('touchpadSensitivity') ?? 1.0;
-    
-    touchpadSensitivityLocked = SharedPreferencesManager.getDouble('touchpadSensitivityLocked') ?? 10.0;
-    
-    touchpadTwoFingerScroll = SharedPreferencesManager.getBool('touchpadTwoFingerScroll') ?? true;
-    touchpadTwoFingerZoom = SharedPreferencesManager.getBool('touchpadTwoFingerZoom') ?? true;
+    touchpadSensitivity =
+        SharedPreferencesManager.getDouble('touchpadSensitivity') ?? 1.0;
+
+    touchpadSensitivityLocked =
+        SharedPreferencesManager.getDouble('touchpadSensitivityLocked') ?? 10.0;
+
+    touchpadTwoFingerScroll =
+        SharedPreferencesManager.getBool('touchpadTwoFingerScroll') ?? true;
+    touchpadTwoFingerZoom =
+        SharedPreferencesManager.getBool('touchpadTwoFingerZoom') ?? true;
 
     if (AppPlatform.isDeskTop) {
       useClipBoard = SharedPreferencesManager.getBool('useClipBoard') ?? true;
@@ -168,7 +205,8 @@ class StreamingSettings {
       useClipBoard = SharedPreferencesManager.getBool('useClipBoard') ?? false;
     }
 
-    isStreamingStateEnabled = SharedPreferencesManager.getBool('streamingState') ?? false;
+    isStreamingStateEnabled =
+        SharedPreferencesManager.getBool('streamingState') ?? false;
     ScreenController.setShowVideoInfo(isStreamingStateEnabled!);
   }
 

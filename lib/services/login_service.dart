@@ -23,7 +23,7 @@ class LoginService {
   //run python manage.py runserver 8000 before testing.
   //sudo service redis-server start before run server on windows WSL.
   // 算力橙自定义后端服务器
-  static String _baseUrl = 'http://8.210.183.180:8000';
+  static String _baseUrl = 'http://8.210.183.180:8080';
   static String get baseUrl => _baseUrl;
 
   static void init() {

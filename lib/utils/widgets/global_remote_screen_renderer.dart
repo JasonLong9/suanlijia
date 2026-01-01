@@ -1118,17 +1118,18 @@ class _VideoScreenState extends State<GlobalRemoteScreenRenderer> {
                     : Container(),*/
                 const OnScreenVirtualGamepad(),
                 const OnScreenVirtualKeyboard(), // 放置在Stack中，独立于Listener和RawKeyboardListener,
-                const Positioned(
-                  top: 20,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    ignoring: true,
-                    child: Center(
-                      child: VideoInfoWidget(),
+                if (!kIsWeb)
+                  const Positioned(
+                    top: 20,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      ignoring: true,
+                      child: Center(
+                        child: VideoInfoWidget(),
+                      ),
                     ),
                   ),
-                ),
                 OnScreenVirtualMouse(
                     initialPosition: _virtualMousePosition,
                     onPositionChanged: (pos) {

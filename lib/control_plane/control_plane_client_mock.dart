@@ -218,6 +218,17 @@ class ControlPlaneClientMock implements ControlPlaneClient {
   }
 
   @override
+  Future<List<Lease>> fetchLeases() async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final leases = _leasesById.values
+        .where((l) => l.status != LeaseStatus.ended)
+        .toList()
+      ..sort((a, b) => (b.startedAt ?? DateTime.now())
+          .compareTo(a.startedAt ?? DateTime.now()));
+    return leases;
+  }
+
+  @override
   Future<BillingInfo> fetchBillingInfo() async {
     await Future.delayed(const Duration(milliseconds: 180));
     final activeLeases = _leasesById.values

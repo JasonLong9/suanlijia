@@ -11,7 +11,7 @@ import 'webrtc_service.dart';
 class StreamingManager {
   static Map<String, StreamingSession> sessions = {};
 
-  static void startStreaming(Device target) {
+  static void startStreaming(Device target, {String? leaseId}) {
     if (sessions.containsKey(target.websocketSessionid)) {
       VLOG0(
           "Initializing session which is already initialized: $target.websocketSessionid");
@@ -23,7 +23,7 @@ class StreamingManager {
       session
           .updateRendererCallback(rendererCallbacks[target.websocketSessionid]);
     }
-    session.startRequest();
+    session.startRequest(leaseId: leaseId);
     sessions[target.websocketSessionid] = session;
   }
 

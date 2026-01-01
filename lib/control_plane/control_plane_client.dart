@@ -26,6 +26,8 @@ abstract class ControlPlaneClient {
     String? clientRequestId,
   });
 
+  Future<List<Lease>> fetchLeases();
+
   Future<BillingInfo> fetchBillingInfo();
 
   Future<void> requestRemoteControlLease({
