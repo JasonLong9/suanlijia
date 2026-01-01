@@ -113,6 +113,7 @@ class GpuServer {
 
 /// 预定义的地理位置选项
 const List<String> predefinedLocations = [
+  '石家庄',
   '香港',
   '深圳',
   '上海',

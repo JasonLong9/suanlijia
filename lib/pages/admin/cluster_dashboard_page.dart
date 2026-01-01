@@ -60,7 +60,7 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
       id: node.deviceId,
       name: node.deviceId,  // 使用 deviceId 作为默认名称
       remark: node.agentVersion,  // 版本号作为备注
-      location: node.region,
+      location: (node.region == null || node.region == 'unknown') ? '石家庄' : node.region,
       gpuModel: null,  // 后端暂无此字段
       gpuTier: node.gpuTier,
       status: _mapNodeStatus(node.status),
