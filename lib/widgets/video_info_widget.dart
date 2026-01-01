@@ -153,6 +153,13 @@ class _VideoInfoContentState extends State<_VideoInfoContent> {
                       _videoInfo['decoderImplementation'], _videoInfo)),
               _buildInfoItem('丢包率',
                   '${_calculatePacketLossRate(_videoInfo).toStringAsFixed(1)}%'),
+              _buildInfoItem(
+                '连接方式',
+                _formatConnectionMode(
+                  _videoInfo['iceMode'] as String?,
+                  _videoInfo['iceProtocol'] as String?,
+                ),
+              ),
               _buildInfoItem('往返时延',
                   '${((_videoInfo['roundTripTime'] as num) * 1000).toStringAsFixed(0)} ms'),
               _buildInfoItem('解码时间',
@@ -395,6 +402,10 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
         ((_videoInfo['roundTripTime'] as num) * 1000).toStringAsFixed(0);
     final fps = (_videoInfo['fps'] as num).toStringAsFixed(1);
     final bitrate = _formatKbps(_videoInfo['rxKbps'] as num?);
+    final connectionMode = _formatConnectionMode(
+      _videoInfo['iceMode'] as String?,
+      _videoInfo['iceProtocol'] as String?,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -403,7 +414,7 @@ class _CompactVideoInfoContentState extends State<_CompactVideoInfoContent> {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        '${_videoInfo['width']}×${_videoInfo['height']} | ${fps}fps | 码率 $bitrate | 丢包 ${packetLossRate.toStringAsFixed(1)}% | RTT延迟 ${rtt}ms',
+        '${_videoInfo['width']}×${_videoInfo['height']} | ${fps}fps | $connectionMode | 码率 $bitrate | 丢包 ${packetLossRate.toStringAsFixed(1)}% | RTT延迟 ${rtt}ms',
         style: TextStyle(
             color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
         maxLines: 1,
@@ -473,9 +484,21 @@ Map<String, dynamic> _extractVideoInfo(List<StatsReport> stats) {
     'totalPausesDuration': 0.0,
     'roundTripTime': 0.0,
     'availableBandwidth': 0.0,
+    'iceMode': '',
+    'iceProtocol': '',
   };
 
   try {
+    final localCandidates = <String, Map<String, dynamic>>{};
+    final remoteCandidates = <String, Map<String, dynamic>>{};
+    for (final report in stats) {
+      if (report.type == 'local-candidate') {
+        localCandidates[report.id] = Map<String, dynamic>.from(report.values);
+      } else if (report.type == 'remote-candidate') {
+        remoteCandidates[report.id] = Map<String, dynamic>.from(report.values);
+      }
+    }
+
     // 查找视频入站RTP统计
     for (var report in stats) {
       if (report.type == 'inbound-rtp') {
@@ -558,6 +581,31 @@ Map<String, dynamic> _extractVideoInfo(List<StatsReport> stats) {
               (values['currentRoundTripTime'] as num?)?.toDouble() ?? 0.0;
           videoInfo['availableBandwidth'] =
               (values['availableOutgoingBitrate'] as num?)?.toDouble() ?? 0.0;
+
+          final localId = values['localCandidateId'] as String?;
+          final remoteId = values['remoteCandidateId'] as String?;
+          final localCandidate =
+              localId != null ? localCandidates[localId] : null;
+          final remoteCandidate =
+              remoteId != null ? remoteCandidates[remoteId] : null;
+
+          final localType =
+              (localCandidate?['candidateType'] ?? '').toString().toLowerCase();
+          final remoteType = (remoteCandidate?['candidateType'] ?? '')
+              .toString()
+              .toLowerCase();
+
+          final hasType = localType.isNotEmpty || remoteType.isNotEmpty;
+          final isRelay = localType == 'relay' || remoteType == 'relay';
+          videoInfo['iceMode'] = hasType ? (isRelay ? 'TURN' : 'P2P') : '';
+
+          final protocol = (localCandidate?['protocol'] ??
+                  remoteCandidate?['protocol'] ??
+                  '')
+              .toString()
+              .toLowerCase();
+          videoInfo['iceProtocol'] = protocol;
+
           break;
         }
       }
@@ -567,6 +615,15 @@ Map<String, dynamic> _extractVideoInfo(List<StatsReport> stats) {
   }
 
   return videoInfo;
+}
+
+String _formatConnectionMode(String? mode, String? protocol) {
+  final m = (mode ?? '').trim();
+  final p = (protocol ?? '').trim();
+  if (m.isEmpty && p.isEmpty) return '连接 未知';
+  if (m.isNotEmpty && p.isNotEmpty) return '连接 $m/${p.toUpperCase()}';
+  if (m.isNotEmpty) return '连接 $m';
+  return '连接 ${p.toUpperCase()}';
 }
 
 /// 判断是否为硬件解码器

@@ -61,8 +61,8 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
       name: node.deviceId,  // 使用 deviceId 作为默认名称
       remark: node.agentVersion,  // 版本号作为备注
       location: (node.region == null || node.region == 'unknown') ? '石家庄' : node.region,
-      gpuModel: null,  // 后端暂无此字段
-      gpuTier: node.gpuTier,
+      gpuModel: 'RTX 4060',  // 默认使用 4060
+      gpuTier: (node.gpuTier == null || node.gpuTier.isEmpty) ? '60系' : node.gpuTier,
       status: _mapNodeStatus(node.status),
       lastOnlineTime: node.lastSeen,
     );
