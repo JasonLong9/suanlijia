@@ -435,52 +435,69 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
           
           // 操作按钮
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                // 第一行: 配置 + 重启
                 Row(
                   children: [
+                    // 配置按钮
                     Expanded(
-                      child: TextButton(
+                      child: OutlinedButton.icon(
                         onPressed: () => _showServerConfigDialog(server),
-                        style: TextButton.styleFrom(
-                          foregroundColor: ClusterColors.textPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
+                        icon: const Icon(Icons.settings, size: 18),
+                        label: const Text('配置'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blueAccent,
+                          side: const BorderSide(color: Colors.blueAccent),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: const Text('配置', style: TextStyle(fontSize: 12)),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
+                    // 重启按钮
                     Expanded(
-                      child: TextButton(
+                      child: OutlinedButton.icon(
                         onPressed: server.status == ServerStatus.offline
                             ? () => _restartServer(server)
                             : null,
-                        style: TextButton.styleFrom(
-                          foregroundColor: server.status == ServerStatus.offline
-                              ? ClusterColors.statusOffline
-                              : ClusterColors.textSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
+                        icon: const Icon(Icons.restart_alt, size: 18),
+                        label: const Text('重启'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orangeAccent,
+                          side: server.status == ServerStatus.offline 
+                              ? const BorderSide(color: Colors.orangeAccent)
+                              : null,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: const Text('重启', style: TextStyle(fontSize: 12)),
                       ),
                     ),
                   ],
                 ),
-                // 第二行: 删除按钮 (仅离线时显示)
-                if (server.status == ServerStatus.offline)
+                if (server.status == ServerStatus.offline) ...[
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
-                    child: TextButton(
+                    child: OutlinedButton.icon(
                       onPressed: () => _deleteServer(server),
-                      style: TextButton.styleFrom(
-                        foregroundColor: ClusterColors.statusOffline,
-                        padding: const EdgeInsets.symmetric(vertical: 2),
+                      icon: const Icon(Icons.delete_forever, size: 18),
+                      label: const Text('删除服务器'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: const Text('🗑️ 删除', style: TextStyle(fontSize: 11)),
                     ),
                   ),
+                ],
               ],
             ),
           ),
