@@ -191,6 +191,9 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
       try {
         await getIt<ControlPlaneController>().deleteNode(server.id);
         if (mounted) {
+          setState(() {
+            _servers.removeWhere((s) => s.id == server.id);
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('服务器 ${server.name} 已成功删除')),
           );
