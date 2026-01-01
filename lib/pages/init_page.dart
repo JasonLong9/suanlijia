@@ -301,7 +301,7 @@ class InitPage extends StatelessWidget {
                       child: AnimatedTextKit(
                         animatedTexts: [
                           ColorizeAnimatedText(
-                            CustomConfig.isV11 ? CustomConfig.appName : 'Cloud Play Plus',
+                            '鲜活算力 一触即成',
                             textStyle: colorizeTextStyle,
                             colors: colorizeColors,
                           ),
