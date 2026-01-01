@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/gpu_server.dart';
+import '../../control_plane/control_plane_controller.dart';
+import '../../control_plane/control_plane_models.dart';
+import '../../service_locator.dart';
 
 /// 深色主题颜色常量
 class ClusterColors {
@@ -34,64 +37,52 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
   Future<void> _loadServers() async {
     setState(() => _isLoading = true);
     
-    // TODO: 从后端 API 加载服务器列表
-    // 目前使用模拟数据
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    setState(() {
-      _servers = _getMockServers();
-      _isLoading = false;
-    });
+    try {
+      // 从 ControlPlaneController 获取真实的节点数据
+      final controller = getIt<ControlPlaneController>();
+      await controller.refreshPool(); // 刷新获取最新数据
+      
+      // 将 PoolNode 转换为 GpuServer
+      final poolNodes = controller.poolNodes;
+      _servers = poolNodes.map((node) => _poolNodeToGpuServer(node)).toList();
+    } catch (e) {
+      debugPrint('加载服务器列表失败: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
-  List<GpuServer> _getMockServers() {
-    return [
-      GpuServer(
-        id: 'gpu-001',
-        name: 'GPU-001',
-        remark: '主力机器',
-        location: '香港',
-        gpuModel: 'RTX 4060',
-        gpuTier: '60系',
-        status: ServerStatus.available,
-        lastOnlineTime: DateTime.now(),
-      ),
-      GpuServer(
-        id: 'gpu-002',
-        name: 'GPU-002',
-        location: '深圳',
-        gpuModel: 'RTX 4060',
-        gpuTier: '60系',
-        status: ServerStatus.inUse,
-        currentUserName: '用户A',
-      ),
-      GpuServer(
-        id: 'gpu-003',
-        name: 'GPU-003',
-        location: '上海',
-        gpuModel: 'RTX 4090',
-        gpuTier: '90系',
-        status: ServerStatus.offline,
-        lastOnlineTime: DateTime.now().subtract(const Duration(minutes: 10)),
-      ),
-      GpuServer(
-        id: 'gpu-004',
-        name: 'GPU-004',
-        location: '香港',
-        gpuModel: 'RTX 4060',
-        gpuTier: '60系',
-        status: ServerStatus.available,
-      ),
-      GpuServer(
-        id: 'gpu-005',
-        name: 'GPU-005',
-        remark: '新上线',
-        location: '北京',
-        gpuModel: 'RTX 4070',
-        gpuTier: '70系',
-        status: ServerStatus.available,
-      ),
-    ];
+  /// 将后端 PoolNode 模型转换为前端 GpuServer 模型
+  GpuServer _poolNodeToGpuServer(PoolNode node) {
+    return GpuServer(
+      id: node.deviceId,
+      name: node.deviceId,  // 使用 deviceId 作为默认名称
+      remark: node.agentVersion,  // 版本号作为备注
+      location: node.region,
+      gpuModel: null,  // 后端暂无此字段
+      gpuTier: node.gpuTier,
+      status: _mapNodeStatus(node.status),
+      lastOnlineTime: node.lastSeen,
+    );
+  }
+
+  /// 将后端 NodeStatus 映射到前端 ServerStatus
+  ServerStatus _mapNodeStatus(NodeStatus status) {
+    switch (status) {
+      case NodeStatus.free:
+        return ServerStatus.available;
+      case NodeStatus.assigned:
+      case NodeStatus.inUse:
+        return ServerStatus.inUse;
+      case NodeStatus.offline:
+      case NodeStatus.disabled:
+      case NodeStatus.maintenance:
+      case NodeStatus.releasing:
+      case NodeStatus.unknown:
+        return ServerStatus.offline;
+    }
   }
 
   int get _availableCount => 
