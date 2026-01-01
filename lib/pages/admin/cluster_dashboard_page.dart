@@ -165,6 +165,41 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
     }
   }
 
+  Future<void> _deleteServer(GpuServer server) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要彻底删除服务器 ${server.name} 吗？\n\n此操作不可恢复！'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: ClusterColors.statusOffline,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // TODO: 调用后端 API 删除服务器
+      setState(() {
+        _servers.removeWhere((s) => s.id == server.id);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除 ${server.name}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -393,33 +428,51 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
           // 操作按钮
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => _showServerConfigDialog(server),
-                    style: TextButton.styleFrom(
-                      foregroundColor: ClusterColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                // 第一行: 配置 + 重启
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => _showServerConfigDialog(server),
+                        style: TextButton.styleFrom(
+                          foregroundColor: ClusterColors.textPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                        ),
+                        child: const Text('配置', style: TextStyle(fontSize: 12)),
+                      ),
                     ),
-                    child: const Text('配置', style: TextStyle(fontSize: 12)),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: TextButton(
-                    onPressed: server.status == ServerStatus.offline
-                        ? () => _restartServer(server)
-                        : null,
-                    style: TextButton.styleFrom(
-                      foregroundColor: server.status == ServerStatus.offline
-                          ? ClusterColors.statusOffline
-                          : ClusterColors.textSecondary,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: server.status == ServerStatus.offline
+                            ? () => _restartServer(server)
+                            : null,
+                        style: TextButton.styleFrom(
+                          foregroundColor: server.status == ServerStatus.offline
+                              ? ClusterColors.statusOffline
+                              : ClusterColors.textSecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                        ),
+                        child: const Text('重启', style: TextStyle(fontSize: 12)),
+                      ),
                     ),
-                    child: const Text('重启', style: TextStyle(fontSize: 12)),
-                  ),
+                  ],
                 ),
+                // 第二行: 删除按钮 (仅离线时显示)
+                if (server.status == ServerStatus.offline)
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => _deleteServer(server),
+                      style: TextButton.styleFrom(
+                        foregroundColor: ClusterColors.statusOffline,
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                      ),
+                      child: const Text('🗑️ 删除', style: TextStyle(fontSize: 11)),
+                    ),
+                  ),
               ],
             ),
           ),
