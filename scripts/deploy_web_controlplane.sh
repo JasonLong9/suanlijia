@@ -83,6 +83,49 @@ else
   cp -a "$OUT_DIR/downloads" "$RELEASE_DIR/downloads"
 fi
 
+# 重要：强制写入「kill-switch」service worker，清理旧版本 Flutter Web 的缓存，
+# 避免用户即使 /version.json 已更新仍看到旧 UI（service worker 仍在拦截 main.dart.js）。
+cat > "$RELEASE_DIR/flutter_service_worker.js" <<'SW'
+// This "kill-switch" service worker exists to remove stale caches from older
+// Flutter Web deployments (which can make users see an old UI even after
+// /version.json updates).
+//
+// It clears all CacheStorage entries, then unregisters itself.
+// The current web build does NOT rely on service workers.
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      } catch (_) {}
+
+      try {
+        await self.clients.claim();
+        const clients = await self.clients.matchAll({
+          type: 'window',
+          includeUncontrolled: true,
+        });
+        for (const client of clients) {
+          try {
+            await client.navigate(client.url);
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      try {
+        await self.registration.unregister();
+      } catch (_) {}
+    })(),
+  );
+});
+SW
+
 {
   echo "build_name=${BUILD_NAME}"
   echo "build_number=${BUILD_NUMBER}"
