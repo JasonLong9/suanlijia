@@ -58,9 +58,10 @@ set_target_properties(${INDEPENDENT_EXE} PROPERTIES
 )
 
 # 4. 指定独立依赖（如需要）
-#target_link_libraries(${INDEPENDENT_EXE} PRIVATE
-  #user32.lib       # Windows API库
-#)
+target_link_libraries(${INDEPENDENT_EXE} PRIVATE
+  "Advapi32.lib"
+  "Wtsapi32.lib"
+)
 
 # 6. 确保与Flutter构建的依赖隔离
 if(TARGET flutter_assemble)
