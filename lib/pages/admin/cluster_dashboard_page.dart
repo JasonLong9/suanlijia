@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+
 import '../../models/gpu_server.dart';
 import '../../control_plane/control_plane_controller.dart';
 import '../../control_plane/control_plane_models.dart';
@@ -30,6 +32,10 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
   bool _isLoading = false;
   ServerStatus? _selectedFilter;
 
+  // 自动刷新相关
+  Timer? _refreshTimer;
+  int _autoRefreshInterval = 0; // 0: 关闭, 5: 5秒, 10: 10秒, 30: 30秒
+
   List<GpuServer> get _filteredServers {
     if (_selectedFilter == null) return _servers;
     return _servers.where((s) => s.status == _selectedFilter).toList();
@@ -41,8 +47,34 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
     _loadServers();
   }
 
-  Future<void> _loadServers() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _stopAutoRefresh();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _stopAutoRefresh();
+    if (_autoRefreshInterval > 0) {
+      _refreshTimer = Timer.periodic(Duration(seconds: _autoRefreshInterval), (timer) {
+        if (mounted) {
+          _loadServers(showLoading: false);
+        }
+      });
+    }
+  }
+
+  void _stopAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  Future<void> _loadServers({bool showLoading = true}) async {
+    if (!mounted) return;
+    
+    if (showLoading) {
+      setState(() => _isLoading = true);
+    }
     
     try {
       // 从 ControlPlaneController 获取真实的节点数据
@@ -256,7 +288,7 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
             _buildStatusBar(),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadServers,
+                onRefresh: () async => _loadServers(),
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _buildServerGrid(),
@@ -345,7 +377,57 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.refresh, color: ClusterColors.textPrimary),
-            onPressed: _loadServers,
+            onPressed: () => _loadServers(),
+          ),
+          
+          // 自动刷新设置菜单
+          PopupMenuButton<int>(
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_autoRefreshInterval > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Text(
+                      '${_autoRefreshInterval}s',
+                      style: const TextStyle(
+                        color: ClusterColors.statusAvailable,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                Icon(
+                  _autoRefreshInterval > 0 ? Icons.timer : Icons.timer_off_outlined,
+                  color: _autoRefreshInterval > 0 ? ClusterColors.statusAvailable : ClusterColors.textPrimary,
+                ),
+              ],
+            ),
+            tooltip: '自动刷新设置',
+            onSelected: (int value) {
+              setState(() {
+                _autoRefreshInterval = value;
+                _startAutoRefresh();
+              });
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
+              const PopupMenuItem<int>(
+                value: 0,
+                child: Text('关闭自动刷新'),
+              ),
+              const PopupMenuItem<int>(
+                value: 5,
+                child: Text('5秒'),
+              ),
+              const PopupMenuItem<int>(
+                value: 10,
+                child: Text('10秒'),
+              ),
+               const PopupMenuItem<int>( // 修正语法
+                value: 30,
+                child: Text('30秒'),
+              ),
+            ],
           ),
         ],
       ),
