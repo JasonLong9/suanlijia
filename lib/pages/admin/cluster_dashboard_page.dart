@@ -200,8 +200,19 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
         }
       } catch (e) {
         if (mounted) {
+          String errorMessage = e.toString();
+          if (e is ControlPlaneApiException) {
+            errorMessage = e.message;
+            if (e.code == 'RAW_RESPONSE' && e.details != null) {
+              errorMessage = '${e.message}\n${e.details}';
+            }
+          }
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('删除失败: $e')),
+            SnackBar(
+              content: Text('删除失败: $errorMessage'),
+              backgroundColor: Colors.redAccent,
+              duration: const Duration(seconds: 5),
+            ),
           );
         }
       }

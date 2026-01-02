@@ -280,6 +280,7 @@ class ControlPlaneClientReal implements ControlPlaneClient {
     }
     return {
       'Content-Type': 'application/json; charset=UTF-8',
+      'Accept': 'application/json',
       if (accessToken != null && accessToken.isNotEmpty)
         'Authorization': 'Bearer $accessToken',
     };
@@ -337,10 +338,21 @@ class ControlPlaneClientReal implements ControlPlaneClient {
   }
 
   Map<String, dynamic> _decodeJson(http.Response response) {
-    final text = utf8.decode(response.bodyBytes);
-    final decoded = jsonDecode(text);
-    if (decoded is Map<String, dynamic>) return decoded;
-    return <String, dynamic>{'data': decoded};
+    try {
+      final text = utf8.decode(response.bodyBytes);
+      if (text.trim().isEmpty) return <String, dynamic>{};
+      final decoded = jsonDecode(text);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return <String, dynamic>{'data': decoded};
+    } catch (e) {
+      // If decoding fails (e.g. HTML response), return the raw body as a message
+      final rawBody = utf8.decode(response.bodyBytes);
+      return <String, dynamic>{
+        'code': 'RAW_RESPONSE',
+        'message': 'Server returned non-JSON response (HTTP ${response.statusCode})',
+        'details': rawBody.length > 200 ? rawBody.substring(0, 200) : rawBody,
+      };
+    }
   }
 
   ControlPlaneApiException _asApiException(
