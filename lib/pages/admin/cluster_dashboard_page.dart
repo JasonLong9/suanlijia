@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/gpu_server.dart';
 import '../../control_plane/control_plane_controller.dart';
 import '../../control_plane/control_plane_models.dart';
+import '../../services/admin_service.dart';
 import '../../service_locator.dart';
 
 /// 深色主题颜色常量
@@ -27,6 +28,12 @@ class ClusterDashboardPage extends StatefulWidget {
 class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
   List<GpuServer> _servers = [];
   bool _isLoading = false;
+  ServerStatus? _selectedFilter;
+
+  List<GpuServer> get _filteredServers {
+    if (_selectedFilter == null) return _servers;
+    return _servers.where((s) => s.status == _selectedFilter).toList();
+  }
 
   @override
   void initState() {
@@ -65,6 +72,9 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
       gpuTier: (node.gpuTier == null || node.gpuTier.isEmpty) ? '60系' : node.gpuTier,
       status: _mapNodeStatus(node.status),
       lastOnlineTime: node.lastSeen,
+      bmcAddress: node.capabilities?['bmc_address'],
+      bmcUsername: node.capabilities?['bmc_username'],
+      bmcPassword: node.capabilities?['bmc_password'],
     );
   }
 
@@ -158,10 +168,26 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
     );
 
     if (confirm == true) {
-      // TODO: 调用后端 API 执行 BMC 重启
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('正在重启 ${server.name}...')),
+        SnackBar(content: Text('正在重启 ${server.name} (BMC强制重启)...')),
       );
+      try {
+        await getIt<AdminService>().rebootNode(server.id, bmc: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('已发送重启指令给 ${server.name}')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('重启失败: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -242,6 +268,65 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
     );
   }
 
+  Widget _buildServerGrid() {
+    final servers = _filteredServers;
+    if (servers.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.search_off,
+              size: 48,
+              color: ClusterColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _selectedFilter == null ? '暂无服务器' : '没有该状态的服务器',
+              style: const TextStyle(
+                color: ClusterColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 自适应网格布局
+        final width = constraints.maxWidth;
+        int crossAxisCount = 1;
+        if (width > 1200) {
+          crossAxisCount = 4;
+        } else if (width > 800) {
+          crossAxisCount = 3;
+        } else if (width > 500) {
+          crossAxisCount = 2;
+        }
+        
+        // 计算宽高比，卡片高度约230
+        final itemWidth = width / crossAxisCount;
+        final childAspectRatio = itemWidth / 230;
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: servers.length,
+          itemBuilder: (context, index) {
+            return _buildServerCard(servers[index]);
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -282,18 +367,21 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
             '可用',
             _availableCount,
             ClusterColors.statusAvailable,
+            ServerStatus.available,
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 12),
           _buildStatusChip(
             '使用中',
             _inUseCount,
             ClusterColors.statusInUse,
+            ServerStatus.inUse,
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 12),
           _buildStatusChip(
             '离线',
             _offlineCount,
             ClusterColors.statusOffline,
+            ServerStatus.offline,
           ),
           const Spacer(),
           Text(
@@ -308,44 +396,62 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
     );
   }
 
-  Widget _buildStatusChip(String label, int count, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
+  Widget _buildStatusChip(String label, int count, Color color, ServerStatus status) {
+    final isSelected = _selectedFilter == status;
+    final isDimmed = _selectedFilter != null && !isSelected;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            if (_selectedFilter == status) {
+              _selectedFilter = null;
+            } else {
+              _selectedFilter = status;
+            }
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
+            color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? color : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(isDimmed ? 0.3 : 1.0),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$count $label',
+                style: TextStyle(
+                  color: isDimmed 
+                      ? ClusterColors.textSecondary 
+                      : (isSelected ? color : ClusterColors.textPrimary),
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 6),
-        Text(
-          '$count $label',
-          style: const TextStyle(
-            color: ClusterColors.textPrimary,
-            fontSize: 14,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildServerGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.95,
-      ),
-      itemCount: _servers.length,
-      itemBuilder: (context, index) {
-        return _buildServerCard(_servers[index]);
-      },
-    );
-  }
+
 
   Widget _buildServerCard(GpuServer server) {
     final statusColor = _getStatusColor(server.status);
@@ -389,33 +495,36 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
             ),
           ),
           
-          // 服务器名称
+          // 1. 备注信息 (作为主标题)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Text(
-              server.name,
+              server.remark != null && server.remark!.isNotEmpty 
+                  ? server.remark! 
+                  : server.name, // 无备注时显示 N001 (name)
               style: const TextStyle(
                 color: ClusterColors.textPrimary,
-                fontSize: 14,
+                fontSize: 16, // 加大字号
                 fontWeight: FontWeight.bold,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           
-          // 备注
-          if (server.remark != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: Text(
-                server.remark!,
-                style: const TextStyle(
-                  color: ClusterColors.textSecondary,
-                  fontSize: 11,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+          // 2. 机器编码 (作为副标题，始终显示)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
+            child: Text(
+              server.id, // 始终显示真实 deviceId (gui_...)
+              style: const TextStyle(
+                color: ClusterColors.textSecondary,
+                fontSize: 11,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
+          ),
           
           // 位置 + 显卡
           Padding(
@@ -467,29 +576,36 @@ class _ClusterDashboardPageState extends State<ClusterDashboardPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // 重启按钮
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    // 重启按钮 (改为常亮，橙色醒目)
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: server.status == ServerStatus.offline
-                            ? () => _restartServer(server)
-                            : null,
+                        // 任何状态都允许尝试重启（只要有 BMC 配置）
+                        onPressed: server.hasBmcConfig 
+                          ? () => _restartServer(server)
+                          : () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('请先配置 BMC 信息')),
+                            ),
                         icon: const Icon(Icons.restart_alt, size: 18),
-                        label: const Text('重启'),
+                        label: const Text('强制重启 (BMC)'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.orangeAccent,
-                          side: server.status == ServerStatus.offline 
-                              ? const BorderSide(color: Colors.orangeAccent)
-                              : null,
+                          foregroundColor: Colors.deepOrangeAccent,
+                          side: const BorderSide(color: Colors.deepOrangeAccent, width: 1.5),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
+                          backgroundColor: Colors.deepOrangeAccent.withOpacity(0.1),
                         ),
                       ),
                     ),
                   ],
                 ),
+
                 if (server.status == ServerStatus.offline) ...[
                   const SizedBox(height: 8),
                   SizedBox(
@@ -580,8 +696,29 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
       currentUserId: widget.server.currentUserId,
       currentUserName: widget.server.currentUserName,
     );
-    widget.onSave(updated);
-    Navigator.pop(context);
+
+    
+    // 如果是 AdminService，我们需要传递具体字段
+    final adminService = getIt<AdminService>();
+    adminService.updateNode(
+      deviceId: updated.id,
+      nickname: updated.name,
+      // remark 暂无对应后端字段，当前实现可能未保存 remark
+      region: updated.location,
+      gpuTier: updated.gpuTier,
+      bmcAddress: updated.bmcAddress,
+      bmcUsername: updated.bmcUsername,
+      bmcPassword: updated.bmcPassword,
+    ).then((_) {
+       widget.onSave(updated); // 这里可能只是为了立即刷新UI
+       if (mounted) Navigator.pop(context);
+    }).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存失败: $e')),
+        );
+      }
+    });
   }
 
   @override

@@ -167,6 +167,7 @@ class PoolNode {
   final DateTime lastSeen;
   final String? connectionId;
   final String? agentVersion;
+  final Map<String, dynamic>? capabilities;
 
   const PoolNode({
     required this.deviceId,
@@ -176,6 +177,7 @@ class PoolNode {
     required this.lastSeen,
     this.connectionId,
     this.agentVersion,
+    this.capabilities,
   });
 
   PoolNode copyWith({
@@ -186,6 +188,7 @@ class PoolNode {
     DateTime? lastSeen,
     String? connectionId,
     String? agentVersion,
+    Map<String, dynamic>? capabilities,
   }) {
     return PoolNode(
       deviceId: deviceId ?? this.deviceId,
@@ -195,6 +198,7 @@ class PoolNode {
       lastSeen: lastSeen ?? this.lastSeen,
       connectionId: connectionId ?? this.connectionId,
       agentVersion: agentVersion ?? this.agentVersion,
+      capabilities: capabilities ?? this.capabilities,
     );
   }
 
@@ -207,6 +211,7 @@ class PoolNode {
       lastSeen: DateTime.parse(json['last_seen'] as String),
       connectionId: json['connection_id'] as String?,
       agentVersion: json['agent_version'] as String?,
+      capabilities: json['capabilities'] as Map<String, dynamic>?,
     );
   }
 
@@ -219,6 +224,7 @@ class PoolNode {
       'status': nodeStatusToWire(status),
       'last_seen': lastSeen.toUtc().toIso8601String(),
       'agent_version': agentVersion,
+      'capabilities': capabilities,
     };
   }
 }

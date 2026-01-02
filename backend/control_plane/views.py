@@ -725,13 +725,60 @@ class AdminRebootNodeView(APIView):
 
     def post(self, request, device_id: str):
         try:
-            Node.objects.get(device_id=device_id)
+            node = Node.objects.get(device_id=device_id)
         except Node.DoesNotExist:
             return _error("NOT_FOUND", "node not found", status_code=404)
 
-        # Node 端目前只实现了 lease_release 的重启回收逻辑，运维重启先按扩展消息预留。
-        send_ws(f"node_{device_id}", "node_reboot", {"device_id": device_id})
-        return Response({"accepted": True}, status=202)
+        # 检查重启类型
+        reboot_type = request.data.get("type", "agent")
+
+        if reboot_type == "bmc":
+            # BMC 强制重启
+            capabilities = node.capabilities or {}
+            bmc_address = capabilities.get("bmc_address")
+            bmc_username = capabilities.get("bmc_username")
+            bmc_password = capabilities.get("bmc_password")
+
+            if not bmc_address or not bmc_username or not bmc_password:
+                return _error("BMC_NOT_CONFIGURED", "BMC credentials not found in node capabilities")
+
+            # 执行 ipmitool 命令
+            # 格式: ipmitool -I lanplus -H <IP> -U <USER> -P <PASSWORD> power reset
+            import subprocess
+            cmd = [
+                "ipmitool",
+                "-I", "lanplus",
+                "-H", bmc_address,
+                "-U", bmc_username,
+                "-P", bmc_password,
+                "power", "reset"
+            ]
+            
+            try:
+                # 设置超时防止卡死
+                subprocess.run(cmd, check=True, timeout=10, capture_output=True)
+                return Response({
+                    "success": True, 
+                    "message": f"IPMI power reset command sent to {bmc_address}",
+                    "type": "bmc"
+                })
+            except subprocess.CalledProcessError as e:
+                return _error(
+                    "BMC_ERROR", 
+                    f"IPMI command failed: {e.stderr.decode('utf-8') if e.stderr else str(e)}"
+                )
+            except subprocess.TimeoutExpired:
+                return _error("BMC_TIMEOUT", "IPMI command timed out")
+            except FileNotFoundError:
+                return _error("IPMI_TOOL_MISSING", "ipmitool not installed on backend server")
+            except Exception as e:
+                return _error("BMC_UNKNOWN_ERROR", str(e))
+
+        else:
+            # 默认 Agent 软重启
+            # Node 端目前只实现了 lease_release 的重启回收逻辑，运维重启先按扩展消息预留。
+            send_ws(f"node_{device_id}", "node_reboot", {"device_id": device_id})
+            return Response({"accepted": True, "type": "agent"}, status=202)
 
 
 class AdminDeleteNodeView(APIView):
@@ -744,7 +791,7 @@ class AdminDeleteNodeView(APIView):
         except Node.DoesNotExist:
             return _error("NOT_FOUND", "node not found", status_code=404)
 
-        # 检查是否有活动租约
+        # 检查是否有活动租约 (保持原有逻辑，防止误删正在使用的机器)
         active_leases = Lease.objects.filter(
             device=node,
             status__in=[
@@ -763,6 +810,10 @@ class AdminDeleteNodeView(APIView):
                 status_code=400
             )
 
+        #以此节点关联的所有租约，必须先手动删除，因为 Lease.device 是 ON_DELETE=PROTECT
+        # 这会级联删除相关的 BillingRecord
+        Lease.objects.filter(device=node).delete()
+
         # 删除节点
         node.delete()
         push_pool_update()
@@ -770,7 +821,7 @@ class AdminDeleteNodeView(APIView):
         return Response({
             "success": True,
             "device_id": device_id,
-            "message": "Node deleted successfully"
+            "message": "Node deleted successfully (associated leases cleaned up)"
         })
 
 

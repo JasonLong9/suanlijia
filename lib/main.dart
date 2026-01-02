@@ -179,7 +179,7 @@ class MyApp extends StatelessWidget {
         child: Consumer<ThemeProvider>(
           builder: (context, themeProvider, child) {
             return MaterialApp(
-              title: CustomConfig.isV11 ? CustomConfig.appName : 'SLC',
+              title: CustomConfig.isV11 ? CustomConfig.appName : '算力橙',
               theme: themeProvider.lightTheme,
               darkTheme: themeProvider.darkTheme,
               themeMode: themeProvider.themeMode,

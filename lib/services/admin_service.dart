@@ -48,13 +48,15 @@ class AdminService {
         .toList();
   }
 
-  Future<void> rebootNode(String deviceId) async {
+  Future<void> rebootNode(String deviceId, {bool bmc = false}) async {
     final baseUrl = LoginService.baseUrl;
     final url = Uri.parse('$baseUrl/api/admin/nodes/$deviceId/reboot/');
     final response = await http.post(
       url,
       headers: await _getHeaders(),
-      body: jsonEncode({}),
+      body: jsonEncode({
+        if (bmc) 'type': 'bmc',
+      }),
     );
     if (response.statusCode != 200 && response.statusCode != 202) {
       throw Exception('Reboot failed: ${response.statusCode}');
@@ -79,13 +81,24 @@ class AdminService {
     String? nickname,
     String? region,
     String? gpuTier,
+    String? bmcAddress,
+    String? bmcUsername,
+    String? bmcPassword,
   }) async {
     final baseUrl = LoginService.baseUrl;
     final url = Uri.parse('$baseUrl/api/admin/nodes/$deviceId/');
+    
+    // 构建 capabilities map
+    final capabilities = <String, dynamic>{};
+    if (bmcAddress != null) capabilities['bmc_address'] = bmcAddress;
+    if (bmcUsername != null) capabilities['bmc_username'] = bmcUsername;
+    if (bmcPassword != null) capabilities['bmc_password'] = bmcPassword;
+
     final payload = <String, dynamic>{
       if (nickname != null) 'nickname': nickname,
       if (region != null) 'region': region,
       if (gpuTier != null) 'gpu_tier': gpuTier,
+      if (capabilities.isNotEmpty) 'capabilities': capabilities,
     };
 
     final response = await http.patch(

@@ -18,6 +18,7 @@ class NodeSerializer(serializers.ModelSerializer):
             "status",
             "last_seen",
             "agent_version",
+            "capabilities",
         ]
 
 
